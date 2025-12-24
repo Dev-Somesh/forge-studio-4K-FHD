@@ -1,6 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
+const { GoogleGenAI } = require("@google/genai");
 
-export async function handler(event) {
+exports.handler = async function(event) {
   // Only allow POST requests
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
@@ -26,20 +26,17 @@ export async function handler(event) {
     const ai = new GoogleGenAI({ apiKey });
 
     // Call the model
-    // We pass the parameters exactly as the App.tsx was constructing them
     const result = await ai.models.generateContent({
       model: model,
       contents: contents,
       config: config
     });
 
-    // The result from the SDK typically contains the response data.
-    // We serialize the whole result to JSON.
     return {
       statusCode: 200,
       headers: { 
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*" // Good for debugging, can start tightening later
+        "Access-Control-Allow-Origin": "*" 
       },
       body: JSON.stringify(result)
     };
@@ -54,4 +51,4 @@ export async function handler(event) {
       }),
     };
   }
-}
+};
