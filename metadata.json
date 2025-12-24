@@ -1,5 +1,5 @@
 {
-  "name": "Forge Studio - AI Powered FHD 4K Wallpaper Engine",
-  "description": "Recreate iconic minimalist layered wallpapers in 4K resolution using Gemini 3 Pro Image. Choose your theme and generate a high-fidelity 3840x2160 desktop background.",
+  "name": "Forge Studio: AI Neural Wallpaper Engine",
+  "description": "A high-performance AI engine for generating ultra-high-fidelity (4K) minimalist wallpapers using Gemini 3 Pro and Neural Synthesis.",
   "requestFramePermissions": []
 }

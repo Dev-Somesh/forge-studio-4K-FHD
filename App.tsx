@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { WALLPAPER_THEMES, WALLPAPER_PATTERNS, WALLPAPER_FONTS } from './constants';
 import { WallpaperTheme, WallpaperPattern, GenerationState, MaterialFinish, Orientation, HistoryItem, IdentityType } from './types';
@@ -30,7 +30,7 @@ const App: React.FC = () => {
   const [selectedFont, setSelectedFont] = useState(WALLPAPER_FONTS[0]);
   const [customText, setCustomText] = useState<string>('STAY FOCUSED');
   
-  // Identity State
+  // Identity Matrix State
   const [characterName, setCharacterName] = useState<string>('');
   const [identityStyle, setIdentityStyle] = useState<IdentityType>('None');
 
@@ -95,7 +95,7 @@ const App: React.FC = () => {
   const generateQuote = async (forceAuto: boolean = false) => {
     setIsGeneratingText(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Generate a ultra-minimalist, punchy, 2-word motivational quote in all caps. Use strong, assertive language. No punctuation.`,
@@ -119,28 +119,36 @@ const App: React.FC = () => {
     setMaterial(MATERIAL_FINISHES[Math.floor(Math.random() * MATERIAL_FINISHES.length)]);
     const freshQuote = await generateQuote(true);
     setCustomText(freshQuote || 'STAY FOCUSED');
-    // Randomize identity occasionally for surprise
+    
     if (Math.random() > 0.7) {
-      setIdentityStyle('Symbol');
-      setCharacterName('Cyberpunk Phoenix');
+      const heroes = ['Goku', 'Spider-Man', 'Batman', 'Luffy', 'Naruto', 'Iron Man'];
+      setCharacterName(heroes[Math.floor(Math.random() * heroes.length)]);
+      setIdentityStyle(Math.random() > 0.5 ? 'Symbol' : 'Silhouette');
     } else {
       setIdentityStyle('None');
     }
+
     setTimeout(() => generateWallpaper(freshQuote), 100);
   };
 
   const generateWallpaper = async (overrideText?: string) => {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey && quality === 'FHD') {
+      setState(prev => ({ ...prev, error: "CRITICAL_SYSTEM_ERROR: API_KEY_NOT_FOUND", status: 'HALTED' }));
+      return;
+    }
+
     const isPro = quality === '4K';
     if (isPro && !hasSelectedKey) {
       const success = await handleSelectKey();
       if (!success) return;
     }
 
-    setState(prev => ({ ...prev, isGenerating: true, error: null, status: `SYS_INITIALIZE_CORE` }));
+    setState(prev => ({ ...prev, isGenerating: true, error: null, status: `NEURAL_INITIALIZE_0x${Math.random().toString(16).slice(2, 6).toUpperCase()}` }));
     setLastAiPattern(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: apiKey || '' });
       const targetRes = orientation === 'Landscape' 
         ? (isPro ? '3840x2160' : '1920x1080')
         : (isPro ? '2160x3840' : '1080x1920');
@@ -152,7 +160,7 @@ const App: React.FC = () => {
         : `PATTERN: ${selectedPattern.prompt}`;
 
       const identityPrompt = (identityStyle !== 'None' && characterName.trim()) 
-        ? `IDENTITY_INTEGRATION: Include a minimalist, stylistically consistent ${identityStyle} of "${characterName}". It should be integrated into the structural patterns, behaving as part of the architecture. Apply the same ${material} finish to the identity element.`
+        ? `IDENTITY_INTEGRATION: Include a minimalist, stylistically consistent ${identityStyle} of "${characterName}". It should be integrated into the structural patterns, behaving as part of the architecture. Apply the same ${material} finish to the identity element. Ensure it is not a sticker, but woven into the geometry.`
         : "";
 
       const prompt = `Create a high-fidelity ${quality} ${orientation} wallpaper (${targetRes}).
@@ -164,9 +172,9 @@ const App: React.FC = () => {
       TYPOGRAPHY: ${selectedFont.prompt}.
       AI_COMPOSITION_RULE: ${orientation === 'Portrait' ? 'Place the text vertically centered but shifted slightly down to avoid phone clock overlap.' : 'Expert design placement for balance.'}
       INSTRUCTION_FOR_META: If you are creating an original pattern, include a brief name for it (like 'Quantum Flow' or 'Neon Ribbons') and a technical description of its architecture in the text part of your response.
-      STYLE: Ultra-minimalist, high-contrast, professional digital art.`;
+      STYLE: Ultra-minimalist, high-contrast, professional digital art, professional lighting.`;
 
-      setState(prev => ({ ...prev, status: `ORCHESTRATING_IDENTITY_MATRIX...` }));
+      setState(prev => ({ ...prev, status: `ORCHESTRATING_NEURAL_MATRIX...` }));
       const modelName = isPro ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
       
       const response = await ai.models.generateContent({
@@ -198,13 +206,13 @@ const App: React.FC = () => {
             prompt: aiResponseText
           });
         }
-        setState(prev => ({ ...prev, isGenerating: false, imageUrl: url, status: 'OUTPUT_STABLE' }));
+        setState(prev => ({ ...prev, isGenerating: false, imageUrl: url, status: 'STABLE_OUTPUT' }));
         setHistory(prev => [{ id: Date.now().toString(), url, timestamp: Date.now() }, ...prev].slice(0, 10));
-      } else { throw new Error("NULL_PAYLOAD"); }
+      } else { throw new Error("NULL_NEURAL_PAYLOAD"); }
 
     } catch (err: any) {
       if (err.message?.includes("Requested entity was not found")) setHasSelectedKey(false);
-      setState(prev => ({ ...prev, isGenerating: false, error: err.message, status: 'HALTED' }));
+      setState(prev => ({ ...prev, isGenerating: false, error: err.message, status: 'HALTED_ERR' }));
     }
   };
 
@@ -212,27 +220,26 @@ const App: React.FC = () => {
   const solidThemes = WALLPAPER_THEMES.filter(t => (t as any).type === 'solid');
   const gradientThemes = WALLPAPER_THEMES.filter(t => (t as any).type === 'gradient');
 
-  // Skip setup UI omitted for brevity, keeping existing logic
   if (!hasSelectedKey && !isSetupSkipped) {
     return (
       <div className="min-h-screen bg-black text-zinc-400 font-mono flex items-center justify-center p-6">
         <div className="max-w-md w-full border border-zinc-800 p-8 rounded-lg bg-zinc-900/20 space-y-6 shadow-2xl">
           <div className="space-y-2">
             <h1 className="text-white font-black text-2xl italic flex items-center gap-2">
-              <span className="bg-indigo-600 px-2 text-white">F</span> FORGE // SETUP
+              <span className="bg-indigo-600 px-2 text-white">F</span> FORGE // AI NEURAL SETUP
             </h1>
-            <p className="text-xs text-zinc-500 uppercase tracking-widest">Initialization Required for Pro</p>
+            <p className="text-xs text-zinc-500 uppercase tracking-widest">Initialization Sequence Required</p>
           </div>
           <p className="text-sm leading-relaxed">
-            Link a paid API key for <span className="text-indigo-400">4K Precision</span> and <span className="text-indigo-400">Gemini 3 Pro</span>. 
-            Alternatively, proceed with Standard Mode for FHD generation.
+            Link a paid API key for <span className="text-indigo-400">4K Engine Precision</span> and <span className="text-indigo-400">Gemini 3 Pro Neural Core</span>. 
+            Alternatively, proceed with Standalone Mode for FHD generation.
           </p>
           <div className="space-y-3 pt-4">
             <button onClick={handleSelectKey} className="w-full py-4 bg-white text-black font-black uppercase rounded hover:bg-zinc-200 transition-all text-sm">
-              Link Pro API Key
+              Link Pro Neural Core
             </button>
             <button onClick={() => setIsSetupSkipped(true)} className="w-full py-4 border border-zinc-800 text-zinc-500 font-black uppercase rounded hover:border-zinc-600 hover:text-zinc-300 transition-all text-sm">
-              Skip to FHD Mode
+              Proceed Standard (FHD)
             </button>
           </div>
         </div>
@@ -241,7 +248,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto p-4 text-zinc-400 font-mono text-xs leading-tight selection:bg-indigo-600">
+    <div className="max-w-[1400px] mx-auto p-4 text-zinc-400 font-mono text-xs leading-tight selection:bg-indigo-600/30">
       
       {/* Settings Modal */}
       {isSettingsOpen && (
@@ -250,7 +257,7 @@ const App: React.FC = () => {
             <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
               <h2 className="text-white font-black uppercase text-sm tracking-widest flex items-center gap-2">
                  <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
-                 System_Configuration
+                 Neural_Engine_Config
               </h2>
               <button onClick={() => setIsSettingsOpen(false)} className="text-zinc-500 hover:text-white transition-colors">✕</button>
             </div>
@@ -261,16 +268,16 @@ const App: React.FC = () => {
                 </h3>
                 <div className="flex items-center justify-between p-4 border border-zinc-800 rounded bg-black/40">
                   <span className={`text-xs ${hasSelectedKey ? 'text-green-500' : 'text-zinc-600 italic'}`}>
-                    {hasSelectedKey ? 'STATUS: PRO_LINK_ESTABLISHED' : 'STATUS: STANDALONE_FHD_MODE'}
+                    {hasSelectedKey ? 'STATUS: PRO_CORE_ONLINE' : 'STATUS: STANDALONE_FLASH_MODE'}
                   </span>
                   <button onClick={handleSelectKey} className="text-xs bg-white text-black px-4 py-2 rounded uppercase font-black hover:bg-zinc-200 transition-all active:scale-95">
-                    {hasSelectedKey ? 'RE-LINK_KEY' : 'LINK_PRO_KEY'}
+                    {hasSelectedKey ? 'RE-LINK_PRO' : 'UPGRADE_TO_PRO'}
                   </button>
                 </div>
               </div>
               <div className="space-y-3">
                 <h3 className="text-xs font-black text-indigo-500 uppercase flex items-center gap-2">
-                   <span className="w-4 h-[1px] bg-indigo-500/50"></span> Stored_Matrix_Data ({customPatterns.length})
+                   <span className="w-4 h-[1px] bg-indigo-500/50"></span> Neural_Library_Data ({customPatterns.length})
                 </h3>
                 <div className="max-h-56 overflow-y-auto border border-zinc-800 rounded bg-black/40 divide-y divide-zinc-800/50 custom-scrollbar">
                   {customPatterns.length === 0 ? (
@@ -279,7 +286,7 @@ const App: React.FC = () => {
                     customPatterns.map(p => (
                       <div key={p.id} className="p-4 flex justify-between items-center group hover:bg-zinc-800/20">
                         <span className="text-zinc-300 font-bold uppercase tracking-tight text-xs">{p.name}</span>
-                        <button onClick={() => deletePattern(p.id)} className="text-xs text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:underline">PURGE_DATA</button>
+                        <button onClick={() => deletePattern(p.id)} className="text-xs text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:underline">PURGE</button>
                       </div>
                     ))
                   )}
@@ -290,12 +297,19 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="flex items-center justify-between border border-zinc-800/60 bg-zinc-900/20 p-3 mb-5 rounded-lg backdrop-blur-sm">
+      <header className="flex items-center justify-between border border-zinc-800/60 bg-zinc-900/20 p-3 mb-5 rounded-lg backdrop-blur-sm shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-indigo-600 text-white flex items-center justify-center font-black italic shadow-lg text-lg">F</div>
-          <span className="text-white font-black tracking-widest uppercase italic text-sm">Forge // <span className="text-indigo-500">Studio</span></span>
+          <div className="w-10 h-10 bg-indigo-600 text-white flex items-center justify-center font-black italic shadow-lg text-xl rounded-md">F</div>
+          <div className="flex flex-col">
+            <span className="text-white font-black tracking-[0.2em] uppercase italic text-sm">Forge Studio</span>
+            <span className="text-[10px] text-indigo-500 font-black tracking-widest uppercase opacity-80">AI Neural Wallpaper Engine</span>
+          </div>
         </div>
         <div className="flex items-center gap-4">
+          <div className="hidden md:flex flex-col items-end px-4 border-r border-zinc-800">
+            <span className="text-[9px] uppercase font-black text-zinc-600">Active_Core</span>
+            <span className="text-[10px] text-indigo-400 font-bold tracking-tight">{quality === '4K' ? 'GEMINI_3_PRO_IMAGE' : 'GEMINI_2.5_FLASH'}</span>
+          </div>
           <div className="flex bg-black/50 rounded p-1 border border-zinc-800 shadow-inner">
             {['FHD', '4K'].map((q) => (
               <button key={q} onClick={() => setQuality(q as QualityMode)} className={`px-5 py-1.5 rounded text-xs font-black uppercase transition-all duration-300 ${quality === q ? 'bg-zinc-800 text-white' : 'text-zinc-600 hover:text-zinc-300'}`}>
@@ -361,15 +375,22 @@ const App: React.FC = () => {
           </section>
 
           <section className="bg-zinc-900/30 border border-zinc-800/50 p-4 rounded-lg">
-            <h4 className="text-xs font-black text-zinc-600 uppercase tracking-widest mb-4">[04] Identity_Matrix</h4>
+            <h4 className="text-xs font-black text-zinc-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 bg-indigo-500 rounded-sm"></span> [04] Identity_Matrix
+            </h4>
             <div className="space-y-3">
-              <input 
-                type="text" 
-                value={characterName} 
-                onChange={(e) => setCharacterName(e.target.value)} 
-                className="w-full bg-black/60 border border-zinc-800 rounded-md px-4 py-2.5 text-zinc-200 focus:border-indigo-500 outline-none font-bold text-xs" 
-                placeholder="CHARACTER / HERO / BRAND" 
-              />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={characterName} 
+                  onChange={(e) => setCharacterName(e.target.value)} 
+                  className="w-full bg-black/60 border border-zinc-800 rounded-md px-4 py-2.5 text-zinc-200 focus:border-indigo-500 outline-none font-bold text-xs" 
+                  placeholder="CHARACTER / HERO / ANIME" 
+                />
+                {characterName && (
+                  <button onClick={() => setCharacterName('')} className="absolute right-3 top-2.5 text-zinc-600 hover:text-white transition-colors">✕</button>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {IDENTITY_STYLES.map(style => (
                   <button 
@@ -385,10 +406,10 @@ const App: React.FC = () => {
           </section>
 
           <section className="bg-zinc-900/30 border border-zinc-800/50 p-4 rounded-lg">
-            <h4 className="text-xs font-black text-zinc-600 uppercase tracking-widest mb-4">[05] Linguistic</h4>
+            <h4 className="text-xs font-black text-zinc-600 uppercase tracking-widest mb-4">[05] Semantic_Logic</h4>
             <div className="space-y-3">
               <div className="relative group">
-                <input type="text" value={customText} onChange={(e) => setCustomText(e.target.value.toUpperCase())} className="w-full bg-black/60 border border-zinc-800 rounded-md px-4 py-2.5 text-zinc-200 focus:border-indigo-500 outline-none pr-12 font-bold tracking-tight text-xs" placeholder="TEXT" />
+                <input type="text" value={customText} onChange={(e) => setCustomText(e.target.value.toUpperCase())} className="w-full bg-black/60 border border-zinc-800 rounded-md px-4 py-2.5 text-zinc-200 focus:border-indigo-500 outline-none pr-12 font-bold tracking-tight text-xs" placeholder="MOTIVATIONAL_TEXT" />
                 <button onClick={() => generateQuote(false)} disabled={isGeneratingText} className="absolute right-2 top-2 w-8 h-8 flex items-center justify-center rounded transition-all active:scale-90">
                   <span className={`text-sm ${isGeneratingText ? 'animate-sparkle' : ''}`}>✨</span>
                 </button>
@@ -400,26 +421,32 @@ const App: React.FC = () => {
           </section>
 
           <div className="space-y-3">
-            <button onClick={() => generateWallpaper()} disabled={state.isGenerating} className={`w-full py-5 rounded-xl font-black text-xs uppercase shadow-2xl transition-all active:scale-[0.98] ${state.isGenerating ? 'bg-zinc-800 text-zinc-600' : quality === '4K' ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-zinc-100 text-black hover:bg-white'}`}>
-              {state.isGenerating ? 'SYNTHESIZING...' : `START_SYNTHESIS_${quality}`}
+            <button onClick={() => generateWallpaper()} disabled={state.isGenerating} className={`w-full py-5 rounded-xl font-black text-xs uppercase shadow-2xl transition-all active:scale-[0.98] ${state.isGenerating ? 'bg-zinc-800 text-zinc-600 cursor-wait' : quality === '4K' ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-zinc-100 text-black hover:bg-white'}`}>
+              {state.isGenerating ? 'NEURAL_SYNTHESIS_ACTIVE...' : `RUN_ENGINE_v${quality}`}
             </button>
             <button onClick={neuralSurprise} disabled={state.isGenerating} className="w-full py-4 bg-zinc-900 border border-zinc-800 hover:border-indigo-500/50 text-indigo-400 font-black text-xs uppercase tracking-[0.2em] rounded-xl transition-all">
               <span className={state.isGenerating ? 'animate-sparkle' : ''}>✨</span> NEURAL_SURPRISE
             </button>
           </div>
+          
+          {state.error && (
+            <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg text-[10px] text-red-500 uppercase leading-relaxed animate-in fade-in slide-in-from-top-1">
+              ERR_CODE: {state.error.split(' ').slice(0, 3).join('_')}... Check Terminal.
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-9 flex flex-col gap-5">
           <div className={`relative bg-black rounded-2xl border border-zinc-800/50 overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 ${orientation === 'Landscape' ? 'aspect-video' : 'aspect-[9/16] w-full max-w-sm mx-auto'}`}>
             {state.imageUrl ? (
               <div className="h-full w-full relative animate-in fade-in duration-1000">
-                <img src={state.imageUrl} alt="Output" className="w-full h-full object-cover transition-transform duration-[8000ms] hover:scale-110" />
+                <img src={state.imageUrl} alt="Neural Output" className="w-full h-full object-cover transition-transform duration-[8000ms] hover:scale-110" />
                 <div className="absolute inset-0 bg-black/60 opacity-0 hover:opacity-100 transition-all flex flex-col items-center justify-center gap-8 backdrop-blur-[4px]">
                   <div className="flex flex-col gap-5 scale-90 hover:scale-100 transition-transform">
-                    <button onClick={() => { if(state.imageUrl) { const link=document.createElement('a'); link.href=state.imageUrl; link.download=`forge-${Date.now()}.png`; link.click(); } }} className="px-12 py-4 bg-white text-black font-black uppercase rounded-full shadow-2xl active:scale-95 text-xs">Download_Asset</button>
+                    <button onClick={() => { if(state.imageUrl) { const link=document.createElement('a'); link.href=state.imageUrl; link.download=`forge-engine-${Date.now()}.png`; link.click(); } }} className="px-12 py-4 bg-white text-black font-black uppercase rounded-full shadow-2xl active:scale-95 text-xs">EXPORT_ASSET</button>
                     {lastAiPattern && (
                       <button onClick={saveToLibrary} className="px-12 py-4 bg-indigo-600 text-white font-black uppercase rounded-full shadow-2xl active:scale-95 text-xs">
-                        💾 Capture_Pattern: {lastAiPattern.name}
+                        💾 CAPTURE_PATTERN: {lastAiPattern.name}
                       </button>
                     )}
                   </div>
@@ -432,18 +459,18 @@ const App: React.FC = () => {
                   <div className="absolute inset-0 w-20 h-20 border-t-2 border-indigo-500 rounded-full animate-[spin_3s_ease-in-out_infinite]"></div>
                 </div>
                 <div className="flex flex-col items-center gap-2">
-                  <p className="uppercase tracking-[0.6em] font-black text-sm text-white">Awaiting_Input_Sequence</p>
-                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest animate-pulse">Core_Standing_By</p>
+                  <p className="uppercase tracking-[0.6em] font-black text-sm text-white">{state.isGenerating ? state.status : 'AWAITING_INPUT_SEQUENCE'}</p>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest animate-pulse">{state.isGenerating ? 'NEURAL_LINK_ENGAGED' : 'ENGINE_CORE_READY'}</p>
                 </div>
               </div>
             )}
           </div>
 
           {history.length > 0 && (
-            <div className="bg-zinc-900/40 border border-zinc-800/50 p-3 rounded-xl">
-               <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-3">
+            <div className="bg-zinc-900/40 border border-zinc-800/50 p-3 rounded-xl overflow-hidden shadow-inner">
+               <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-3 px-1">
                   {history.map(item => (
-                    <button key={item.id} onClick={() => setState(s => ({ ...s, imageUrl: item.url }))} className={`flex-shrink-0 border-2 rounded-lg overflow-hidden transition-all hover:border-indigo-500/50 ${state.imageUrl === item.url ? 'border-indigo-500 scale-95' : 'border-zinc-800'}`}>
+                    <button key={item.id} onClick={() => setState(s => ({ ...s, imageUrl: item.url }))} className={`flex-shrink-0 border-2 rounded-lg overflow-hidden transition-all hover:border-indigo-500/50 ${state.imageUrl === item.url ? 'border-indigo-500 scale-95 shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'border-zinc-800'}`}>
                        <img src={item.url} className={`${orientation === 'Landscape' ? 'w-32 aspect-video' : 'h-32 aspect-[9/16]'} object-cover`} alt="history" />
                     </button>
                   ))}
@@ -453,20 +480,20 @@ const App: React.FC = () => {
 
           <footer className="mt-4 grid grid-cols-4 gap-6 border-t border-zinc-800/40 pt-6 opacity-40">
             <div className="space-y-1.5">
-              <span className="text-[10px] block uppercase text-zinc-600 font-black">Engine</span>
-              <p className="font-bold text-xs tracking-tight">{quality === '4K' ? 'GEMINI_PRO' : 'GEMINI_FLASH'}</p>
+              <span className="text-[10px] block uppercase text-zinc-600 font-black tracking-widest">Neural_Core</span>
+              <p className="font-bold text-xs tracking-tight">{quality === '4K' ? 'PRO_V3' : 'FLASH_V2.5'}</p>
             </div>
             <div className="space-y-1.5">
-              <span className="text-[10px] block uppercase text-zinc-600 font-black">Canvas</span>
+              <span className="text-[10px] block uppercase text-zinc-600 font-black tracking-widest">Canvas_Ratio</span>
               <p className="font-bold text-xs tracking-tight">{orientation.toUpperCase()}</p>
             </div>
             <div className="space-y-1.5">
-              <span className="text-[10px] block uppercase text-zinc-600 font-black">Finish</span>
+              <span className="text-[10px] block uppercase text-zinc-600 font-black tracking-widest">Architect_Finish</span>
               <p className="font-bold text-xs tracking-tight text-indigo-400">{material.toUpperCase()}</p>
             </div>
             <div className="space-y-1.5">
-              <span className="text-[10px] block uppercase text-zinc-600 font-black">Identity</span>
-              <p className={`font-bold text-xs tracking-tight ${identityStyle !== 'None' ? 'text-indigo-500' : 'text-zinc-500'}`}>{identityStyle !== 'None' ? characterName.toUpperCase().substring(0, 10) : 'NULL'}</p>
+              <span className="text-[10px] block uppercase text-zinc-600 font-black tracking-widest">Identity_Node</span>
+              <p className={`font-bold text-xs tracking-tight ${identityStyle !== 'None' ? 'text-indigo-500' : 'text-zinc-500'}`}>{identityStyle !== 'None' ? characterName.toUpperCase().substring(0, 10) || 'ACTIVE' : 'NULL'}</p>
             </div>
           </footer>
         </div>
