@@ -1,5 +1,6 @@
 # 🎨 Forge Studio: AI Neural Wallpaper Engine
 
+[![Netlify Status](https://api.netlify.com/api/v1/badges/da666e65-cb95-4de4-86ab-04ba29598766/deploy-status)](https://app.netlify.com/projects/forgestudio/deploys)
 [![GitHub License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![AI-Gemini](https://img.shields.io/badge/AI-Gemini%203%20Pro-purple.svg)](https://ai.google.dev/)
 

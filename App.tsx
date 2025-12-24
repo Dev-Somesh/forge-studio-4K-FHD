@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import { WALLPAPER_THEMES, WALLPAPER_PATTERNS, WALLPAPER_FONTS } from './constants';
-import { WallpaperTheme, WallpaperPattern, GenerationState, MaterialFinish, Orientation, HistoryItem, IdentityType } from './types';
+import { WALLPAPER_THEMES, WALLPAPER_PATTERNS, WALLPAPER_FONTS } from './constants.tsx';
+import { WallpaperTheme, WallpaperPattern, GenerationState, MaterialFinish, Orientation, HistoryItem, IdentityType } from './types.ts';
 
 declare global {
   interface AIStudio {
