@@ -9,10 +9,10 @@
 ### 🔗 [Launch Forge Studio](https://forgestudio.netlify.app/)
 
 #### ⚡ Setup Phase
-![Forge Studio Setup](./public/1.png)
+![Forge Studio Setup](./1.png)
 
 #### 🎨 Design Workspace
-![Forge Studio Main UI](./public/2.png)
+![Forge Studio Main UI](./2.png)
 
 ---
 
