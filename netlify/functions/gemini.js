@@ -1,74 +1,63 @@
 export async function handler(event) {
-  // 1. Basic Setup
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.error("Server Error: GEMINI_API_KEY is missing in environment variables");
-    return { 
-      statusCode: 500, 
-      body: JSON.stringify({ error: "Server Configuration Error: API Key missing" }) 
-    };
-  }
-
   try {
-    // 2. Parse Payload
-    const { model, contents, config } = JSON.parse(event.body);
+    if (event.httpMethod !== "POST") {
+      return { statusCode: 405, body: "Method Not Allowed" };
+    }
 
-    console.log(`[Proxy] Requesting model: ${model}`);
+    const body = JSON.parse(event.body || "{}");
+    const prompt = body.prompt;
 
-    // 3. Construct REST API Call (Bypassing SDK to avoid bundler issues)
-    // Using v1beta as it supports the newer 2.0/3.0 models usually
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-    // 4. Map 'config' (SDK term) to 'generationConfig' (API term)
-    // Ensure we handle imageConfig correctly if present
-    const payload = {
-      contents: contents,
-      generationConfig: config || {}
-    };
-
-    // 5. Execute Request
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-
-    // 6. Handle API Errors gracefully
-    if (!response.ok) {
-      console.error("[Proxy] Upstream API Error:", JSON.stringify(data));
+    if (!prompt) {
       return {
-        statusCode: response.status,
-        body: JSON.stringify({ 
-          error: "Upstream API Error", 
-          details: data 
-        })
+        statusCode: 400,
+        body: JSON.stringify({ error: "Prompt is required" }),
       };
     }
 
-    // 7. Success
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }],
+            },
+          ],
+        }),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error("Gemini API Error:", data);
+      return {
+        statusCode: res.status,
+        body: JSON.stringify({
+          error: "Upstream API Error",
+          details: data,
+        }),
+      };
+    }
+
     return {
       statusCode: 200,
       headers: { 
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*" 
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     };
-
-  } catch (error) {
-    console.error("[Proxy] Internal Error:", error);
+  } catch (err) {
+    console.error("Function Error:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ 
-        error: "Internal Server Logic Failed", 
-        details: error.message 
-      })
+      body: JSON.stringify({ error: err.message }),
     };
   }
 }

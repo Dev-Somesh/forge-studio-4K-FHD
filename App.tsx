@@ -133,6 +133,8 @@ const App: React.FC = () => {
     prompt: string;
   } | null>(null);
 
+  const isCallingRef = React.useRef(false); // Anti-spam ref
+
   const [state, setState] = useState<GenerationState>({
     isGenerating: false,
     imageUrl: null,
@@ -194,32 +196,49 @@ const App: React.FC = () => {
     setTimeout(() => setState((prev) => ({ ...prev, status: "" })), 2000);
   };
 
-  // Helper to call our Netlify function
-  const callGeminiFunction = async (payload: { model: string; contents: any; config?: any }) => {
-     const response = await fetch("/.netlify/functions/gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-     });
-     
-     if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || `Server Error: ${response.status}`);
+  // Helper to call our Netlify function with Anti-Spam
+  const callGeminiFunction = async (prompt: string) => {
+     if (isCallingRef.current) return null;
+     isCallingRef.current = true;
+
+     try {
+       const response = await fetch("/.netlify/functions/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // SIMPLIFIED PAYLOAD AS REQUESTED
+          body: JSON.stringify({ prompt }), 
+       });
+       
+       const data = await response.json();
+
+       if (!response.ok) {
+          throw new Error(data.error || `Server Error: ${response.status}`);
+       }
+       
+       return data;
+     } finally {
+       // Rate limit cool-down
+       setTimeout(() => {
+         isCallingRef.current = false;
+       }, 1500); 
      }
-     
-     return await response.json();
   };
 
   const generateQuote = async (forceAuto: boolean = false) => {
+    if(isGeneratingText) return;
     setIsGeneratingText(true);
     try {
-      // Call Netlify function instead of SDK directly
-      const response = await callGeminiFunction({
-        model: "gemini-3-flash-preview",
-        contents: `Generate a ultra-minimalist, punchy, 2-word motivational quote in all caps. Use strong, assertive language. No punctuation.`
-      });
+      // Use the new helper with simplified prompt
+      const response = await callGeminiFunction(
+        `Generate a ultra-minimalist, punchy, 2-word motivational quote in all caps. Use strong, assertive language. No punctuation.`
+      );
 
-      const text = response.text || "DO MORE";
+      if (!response) return; // blocked by spam filter
+
+      // Response structure might be different depending on API version, handling standard path
+      const candidate = response.candidates?.[0]?.content?.parts?.[0]?.text;
+      const text = candidate || "DO MORE";
+      
       const cleanText = text.trim().toUpperCase().replace(/[.!?]/g, "");
       if (forceAuto) return cleanText;
       setCustomText(cleanText);
@@ -321,26 +340,18 @@ const App: React.FC = () => {
         : "gemini-2.5-flash-image";
 
       // Call Netlify Function
-      const response = await callGeminiFunction({
-         model: modelName,
-         contents: { parts: [{ text: prompt }] },
-         config: {
-          imageConfig: {
-            aspectRatio: orientation === "Landscape" ? "16:9" : "9:16",
-            ...(isPro ? { imageSize: "4K" } : {}),
-          },
-        }
-      });
+      const response = await callGeminiFunction(prompt);
 
       let b64: string | undefined;
       let aiResponseText: string = "";
 
-      if (response.candidates && response.candidates.length > 0) {
+      if (response && response.candidates && response.candidates.length > 0) {
         for (const part of response.candidates[0].content.parts) {
           if (part.inlineData) b64 = part.inlineData.data;
           if (part.text) aiResponseText += part.text;
         }
       }
+
 
       if (b64) {
         const url = `data:image/png;base64,${b64}`;
