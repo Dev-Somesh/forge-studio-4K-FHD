@@ -1,10 +1,18 @@
 # 🎨 Forge Studio: AI Neural Wallpaper Engine
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/da666e65-cb95-4de4-86ab-04ba29598766/deploy-status)](https://app.netlify.com/projects/forgestudio/deploys)
-[![GitHub License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/demo-live-green.svg)](https://forgestudio.netlify.app/)
 [![AI-Gemini](https://img.shields.io/badge/AI-Gemini%203%20Pro-purple.svg)](https://ai.google.dev/)
 
 **Forge Studio** is a specialized **AI Neural Wallpaper Engine** designed for high-fidelity generative art. By orchestrating state-of-the-art **Gemini 2.5 Flash** and **Gemini 3 Pro Image** models, it synthesizes ultra-high-definition (4K) minimalist assets for modern workspaces.
+
+### 🔗 [Launch Forge Studio](https://forgestudio.netlify.app/)
+
+#### ⚡ Setup Phase
+![Forge Studio Setup](preview.jpg)
+
+#### 🎨 Design Workspace
+![Forge Studio Main UI](main_ui.jpg)
 
 ---
 
