@@ -1,54 +1,74 @@
-const { GoogleGenAI } = require("@google/genai");
-
-exports.handler = async function(event) {
-  // Only allow POST requests
+export async function handler(event) {
+  // 1. Basic Setup
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
+    return { statusCode: 405, body: "Method Not Allowed" };
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error("Server Error: GEMINI_API_KEY is missing in environment variables");
+    return { 
+      statusCode: 500, 
+      body: JSON.stringify({ error: "Server Configuration Error: API Key missing" }) 
+    };
   }
 
   try {
-    // Parse the incoming request body
-    const body = JSON.parse(event.body);
-    const { model, contents, config } = body;
+    // 2. Parse Payload
+    const { model, contents, config } = JSON.parse(event.body);
 
-    // Get the API key from environment variables (Server-side)
-    const apiKey = process.env.GEMINI_API_KEY;
+    console.log(`[Proxy] Requesting model: ${model}`);
 
-    if (!apiKey) {
-      console.error("GEMINI_API_KEY missing in server environment");
-      return { 
-        statusCode: 500, 
-        body: JSON.stringify({ error: "Server configuration error: API Key missing" }) 
+    // 3. Construct REST API Call (Bypassing SDK to avoid bundler issues)
+    // Using v1beta as it supports the newer 2.0/3.0 models usually
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    // 4. Map 'config' (SDK term) to 'generationConfig' (API term)
+    // Ensure we handle imageConfig correctly if present
+    const payload = {
+      contents: contents,
+      generationConfig: config || {}
+    };
+
+    // 5. Execute Request
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    // 6. Handle API Errors gracefully
+    if (!response.ok) {
+      console.error("[Proxy] Upstream API Error:", JSON.stringify(data));
+      return {
+        statusCode: response.status,
+        body: JSON.stringify({ 
+          error: "Upstream API Error", 
+          details: data 
+        })
       };
     }
 
-    // Initialize the Google GenAI SDK
-    const ai = new GoogleGenAI({ apiKey });
-
-    // Call the model
-    const result = await ai.models.generateContent({
-      model: model,
-      contents: contents,
-      config: config
-    });
-
+    // 7. Success
     return {
       statusCode: 200,
       headers: { 
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*" 
       },
-      body: JSON.stringify(result)
+      body: JSON.stringify(data)
     };
 
   } catch (error) {
-    console.error("Gemini Function Error:", error);
+    console.error("[Proxy] Internal Error:", error);
     return {
       statusCode: 500,
       body: JSON.stringify({ 
-        error: error.message || "Internal Server Error",
-        details: error.toString() 
-      }),
+        error: "Internal Server Logic Failed", 
+        details: error.message 
+      })
     };
   }
-};
+}
