@@ -9,10 +9,17 @@
 ### 🔗 [Launch Forge Studio](https://forgestudio.netlify.app/)
 
 #### ⚡ Setup Phase
-![Forge Studio Setup](./1.png)
+![Forge Studio Setup](./public/1.png)
 
 #### 🎨 Design Workspace
-![Forge Studio Main UI](./2.png)
+![Forge Studio Main UI](./public/2.png)
+
+---
+
+## 📂 Project Structure
+
+- `/public`: Contains all static assets, community-shared screenshots, and neural reference benchmarks (`1.png`, `2.png`, `3.png`, `4.png`).
+- `/src`: Core application logic and neural orchestration layer.
 
 ---
 
@@ -22,6 +29,10 @@
 - **Native 4K Assets**: 3840 x 2160 pixels for pixel-perfect desktop clarity.
 - **Dynamic Orientation**: Specialized layout logic for **16:9 Landscape** and **9:16 Portrait**.
 - **Gemini 3 Pro Pipeline**: Access to high-tier neural cores for complex geometric synthesis.
+
+### 🏛️ Neural Gallery
+- **Reference Feed**: View masterwork presets stored in the `public/` folder.
+- **Style Cloning**: Instantly replicate the parameters of a gallery asset to use as a starting point for your own 4K generation.
 
 ### 🧠 Identity Matrix & Fandom
 - **Character Integration**: Stylized inclusion of Anime, Superhero, or Brand identities (Logo, Symbol, Silhouette).

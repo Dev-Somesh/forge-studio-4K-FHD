@@ -19,6 +19,45 @@ type QualityMode = 'FHD' | '4K';
 const MATERIAL_FINISHES: MaterialFinish[] = ['Standard', 'Frosted Glass', 'Brushed Metal', 'Neon Glow', 'Grainy Film', 'Paper Matte'];
 const IDENTITY_STYLES: IdentityType[] = ['None', 'Logo', 'Symbol', 'Silhouette'];
 
+const GALLERY_PRESETS = [
+  {
+    id: 'ref-1',
+    name: 'Neon Horizon',
+    url: 'public/1.png',
+    theme: 'grad-cyber',
+    pattern: 'grid',
+    material: 'Neon Glow',
+    text: 'ULTRA NEON'
+  },
+  {
+    id: 'ref-2',
+    name: 'Slate Minimal',
+    url: 'public/2.png',
+    theme: 'solid-slate',
+    pattern: 'pills',
+    material: 'Brushed Metal',
+    text: 'PURE FOCUS'
+  },
+  {
+    id: 'ref-3',
+    name: 'Abyss Depth',
+    url: 'public/3.png',
+    theme: 'grad-ocean',
+    pattern: 'topo',
+    material: 'Frosted Glass',
+    text: 'DEEP WATER'
+  },
+  {
+    id: 'ref-4',
+    name: 'Magma Flow',
+    url: 'public/4.png',
+    theme: 'grad-sunset',
+    pattern: 'origami',
+    material: 'Grainy Film',
+    text: 'CORE HEAT'
+  }
+];
+
 const App: React.FC = () => {
   const [hasSelectedKey, setHasSelectedKey] = useState<boolean>(false);
   const [isSetupSkipped, setIsSetupSkipped] = useState<boolean>(false);
@@ -30,7 +69,6 @@ const App: React.FC = () => {
   const [selectedFont, setSelectedFont] = useState(WALLPAPER_FONTS[0]);
   const [customText, setCustomText] = useState<string>('STAY FOCUSED');
   
-  // Identity Matrix State
   const [characterName, setCharacterName] = useState<string>('');
   const [identityStyle, setIdentityStyle] = useState<IdentityType>('None');
 
@@ -90,6 +128,18 @@ const App: React.FC = () => {
       setHasSelectedKey(true);
       return true;
     } catch (e) { return false; }
+  };
+
+  const clonePreset = (preset: typeof GALLERY_PRESETS[0]) => {
+    const theme = WALLPAPER_THEMES.find(t => t.id === preset.theme);
+    const pattern = WALLPAPER_PATTERNS.find(p => p.id === preset.pattern);
+    if (theme) setSelectedTheme(theme);
+    if (pattern) setSelectedPattern(pattern);
+    setMaterial(preset.material as MaterialFinish);
+    setCustomText(preset.text);
+    // Visual feedback
+    setState(prev => ({ ...prev, status: `CLONED: ${preset.name.toUpperCase()}` }));
+    setTimeout(() => setState(prev => ({ ...prev, status: '' })), 2000);
   };
 
   const generateQuote = async (forceAuto: boolean = false) => {
@@ -250,7 +300,6 @@ const App: React.FC = () => {
   return (
     <div className="max-w-[1400px] mx-auto p-4 text-zinc-400 font-mono text-xs leading-tight selection:bg-indigo-600/30">
       
-      {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
           <div className="bg-zinc-900 border border-zinc-800 w-full max-w-lg rounded-xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
@@ -422,7 +471,7 @@ const App: React.FC = () => {
 
           <div className="space-y-3">
             <button onClick={() => generateWallpaper()} disabled={state.isGenerating} className={`w-full py-5 rounded-xl font-black text-xs uppercase shadow-2xl transition-all active:scale-[0.98] ${state.isGenerating ? 'bg-zinc-800 text-zinc-600 cursor-wait' : quality === '4K' ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-zinc-100 text-black hover:bg-white'}`}>
-              {state.isGenerating ? 'NEURAL_SYNTHESIS_ACTIVE...' : `RUN_ENGINE_v${quality}`}
+              {state.isGenerating ? 'NEURAL_SYNTHESIS_ACTIVE...' : `RUN_ENGINE_v${quality} (3840x2160)`}
             </button>
             <button onClick={neuralSurprise} disabled={state.isGenerating} className="w-full py-4 bg-zinc-900 border border-zinc-800 hover:border-indigo-500/50 text-indigo-400 font-black text-xs uppercase tracking-[0.2em] rounded-xl transition-all">
               <span className={state.isGenerating ? 'animate-sparkle' : ''}>✨</span> NEURAL_SURPRISE
@@ -437,13 +486,14 @@ const App: React.FC = () => {
         </div>
 
         <div className="lg:col-span-9 flex flex-col gap-5">
+          {/* Main Preview */}
           <div className={`relative bg-black rounded-2xl border border-zinc-800/50 overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 ${orientation === 'Landscape' ? 'aspect-video' : 'aspect-[9/16] w-full max-w-sm mx-auto'}`}>
             {state.imageUrl ? (
               <div className="h-full w-full relative animate-in fade-in duration-1000">
                 <img src={state.imageUrl} alt="Neural Output" className="w-full h-full object-cover transition-transform duration-[8000ms] hover:scale-110" />
                 <div className="absolute inset-0 bg-black/60 opacity-0 hover:opacity-100 transition-all flex flex-col items-center justify-center gap-8 backdrop-blur-[4px]">
                   <div className="flex flex-col gap-5 scale-90 hover:scale-100 transition-transform">
-                    <button onClick={() => { if(state.imageUrl) { const link=document.createElement('a'); link.href=state.imageUrl; link.download=`forge-engine-${Date.now()}.png`; link.click(); } }} className="px-12 py-4 bg-white text-black font-black uppercase rounded-full shadow-2xl active:scale-95 text-xs">EXPORT_ASSET</button>
+                    <button onClick={() => { if(state.imageUrl) { const link=document.createElement('a'); link.href=state.imageUrl; link.download=`forge-engine-${Date.now()}.png`; link.click(); } }} className="px-12 py-4 bg-white text-black font-black uppercase rounded-full shadow-2xl active:scale-95 text-xs">EXPORT_ASSET (4K)</button>
                     {lastAiPattern && (
                       <button onClick={saveToLibrary} className="px-12 py-4 bg-indigo-600 text-white font-black uppercase rounded-full shadow-2xl active:scale-95 text-xs">
                         💾 CAPTURE_PATTERN: {lastAiPattern.name}
@@ -466,26 +516,57 @@ const App: React.FC = () => {
             )}
           </div>
 
+          {/* Relocated Neural Gallery Section */}
+          <section className="bg-zinc-900/40 border border-indigo-500/10 p-5 rounded-2xl overflow-hidden ring-1 ring-indigo-500/5 shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span> Neural_Gallery (Masterwork_Presets)
+              </h4>
+              <span className="text-[9px] text-zinc-600 uppercase font-black tracking-tighter">Clone style for 4K Engine calibration</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {GALLERY_PRESETS.map((p) => (
+                <div key={p.id} className="relative group rounded-xl overflow-hidden border border-zinc-800 aspect-video cursor-pointer shadow-lg" onClick={() => clonePreset(p)}>
+                  <img src={p.url} alt={p.name} className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105 group-hover:blur-[2px]" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-4">
+                    <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                      <span className="text-[11px] text-indigo-400 font-black uppercase tracking-widest block mb-1">{p.name}</span>
+                      <div className="flex gap-2">
+                        <span className="text-[8px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-sm uppercase">{p.material}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute top-3 right-3 bg-indigo-600/90 text-white text-[8px] px-2 py-0.5 rounded-full font-black tracking-widest backdrop-blur-sm border border-indigo-400/30">4K_REF</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* History Tray */}
           {history.length > 0 && (
-            <div className="bg-zinc-900/40 border border-zinc-800/50 p-3 rounded-xl overflow-hidden shadow-inner">
-               <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-3 px-1">
+            <div className="bg-zinc-900/40 border border-zinc-800/50 p-4 rounded-xl overflow-hidden shadow-inner">
+               <div className="flex items-center gap-2 mb-3">
+                 <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Session_Stream</span>
+                 <div className="h-[1px] flex-grow bg-zinc-800/50"></div>
+               </div>
+               <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-2 px-1">
                   {history.map(item => (
-                    <button key={item.id} onClick={() => setState(s => ({ ...s, imageUrl: item.url }))} className={`flex-shrink-0 border-2 rounded-lg overflow-hidden transition-all hover:border-indigo-500/50 ${state.imageUrl === item.url ? 'border-indigo-500 scale-95 shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'border-zinc-800'}`}>
-                       <img src={item.url} className={`${orientation === 'Landscape' ? 'w-32 aspect-video' : 'h-32 aspect-[9/16]'} object-cover`} alt="history" />
+                    <button key={item.id} onClick={() => setState(s => ({ ...s, imageUrl: item.url }))} className={`flex-shrink-0 border-2 rounded-xl overflow-hidden transition-all hover:border-indigo-500/50 active:scale-95 ${state.imageUrl === item.url ? 'border-indigo-500 scale-95 shadow-[0_0_20px_rgba(99,102,241,0.3)]' : 'border-zinc-800'}`}>
+                       <img src={item.url} className={`${orientation === 'Landscape' ? 'w-36 aspect-video' : 'h-36 aspect-[9/16]'} object-cover`} alt="history" />
                     </button>
                   ))}
                </div>
             </div>
           )}
 
-          <footer className="mt-4 grid grid-cols-4 gap-6 border-t border-zinc-800/40 pt-6 opacity-40">
+          <footer className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-6 border-t border-zinc-800/40 pt-6 opacity-40">
             <div className="space-y-1.5">
               <span className="text-[10px] block uppercase text-zinc-600 font-black tracking-widest">Neural_Core</span>
-              <p className="font-bold text-xs tracking-tight">{quality === '4K' ? 'PRO_V3' : 'FLASH_V2.5'}</p>
+              <p className="font-bold text-xs tracking-tight text-zinc-300">{quality === '4K' ? 'PRO_V3' : 'FLASH_V2.5'}</p>
             </div>
             <div className="space-y-1.5">
               <span className="text-[10px] block uppercase text-zinc-600 font-black tracking-widest">Canvas_Ratio</span>
-              <p className="font-bold text-xs tracking-tight">{orientation.toUpperCase()}</p>
+              <p className="font-bold text-xs tracking-tight text-zinc-300">{orientation.toUpperCase()}</p>
             </div>
             <div className="space-y-1.5">
               <span className="text-[10px] block uppercase text-zinc-600 font-black tracking-widest">Architect_Finish</span>
