@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { WALLPAPER_THEMES, WALLPAPER_PATTERNS, WALLPAPER_FONTS } from './constants';
-import { WallpaperTheme, WallpaperPattern, GenerationState, MaterialFinish, Orientation, HistoryItem } from './types';
+import { WallpaperTheme, WallpaperPattern, GenerationState, MaterialFinish, Orientation, HistoryItem, IdentityType } from './types';
 
 declare global {
   interface AIStudio {
@@ -17,6 +17,7 @@ declare global {
 type QualityMode = 'FHD' | '4K';
 
 const MATERIAL_FINISHES: MaterialFinish[] = ['Standard', 'Frosted Glass', 'Brushed Metal', 'Neon Glow', 'Grainy Film', 'Paper Matte'];
+const IDENTITY_STYLES: IdentityType[] = ['None', 'Logo', 'Symbol', 'Silhouette'];
 
 const App: React.FC = () => {
   const [hasSelectedKey, setHasSelectedKey] = useState<boolean>(false);
@@ -28,6 +29,11 @@ const App: React.FC = () => {
   const [selectedPattern, setSelectedPattern] = useState<WallpaperPattern>(WALLPAPER_PATTERNS[0]);
   const [selectedFont, setSelectedFont] = useState(WALLPAPER_FONTS[0]);
   const [customText, setCustomText] = useState<string>('STAY FOCUSED');
+  
+  // Identity State
+  const [characterName, setCharacterName] = useState<string>('');
+  const [identityStyle, setIdentityStyle] = useState<IdentityType>('None');
+
   const [isGeneratingText, setIsGeneratingText] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -113,6 +119,13 @@ const App: React.FC = () => {
     setMaterial(MATERIAL_FINISHES[Math.floor(Math.random() * MATERIAL_FINISHES.length)]);
     const freshQuote = await generateQuote(true);
     setCustomText(freshQuote || 'STAY FOCUSED');
+    // Randomize identity occasionally for surprise
+    if (Math.random() > 0.7) {
+      setIdentityStyle('Symbol');
+      setCharacterName('Cyberpunk Phoenix');
+    } else {
+      setIdentityStyle('None');
+    }
     setTimeout(() => generateWallpaper(freshQuote), 100);
   };
 
@@ -138,17 +151,22 @@ const App: React.FC = () => {
         ? "AI-ORCHESTRATED STRUCTURAL PATTERN: As a creative director, invent a completely new, named structural pattern. Describe its visual style in the text output part."
         : `PATTERN: ${selectedPattern.prompt}`;
 
+      const identityPrompt = (identityStyle !== 'None' && characterName.trim()) 
+        ? `IDENTITY_INTEGRATION: Include a minimalist, stylistically consistent ${identityStyle} of "${characterName}". It should be integrated into the structural patterns, behaving as part of the architecture. Apply the same ${material} finish to the identity element.`
+        : "";
+
       const prompt = `Create a high-fidelity ${quality} ${orientation} wallpaper (${targetRes}).
       ${patternDesc}
+      ${identityPrompt}
       SURFACE_FINISH: The overall texture and material should be ${material}.
       COLORS: ${selectedTheme.promptColor}.
       TEXT_ELEMENT: "${activeText}". 
       TYPOGRAPHY: ${selectedFont.prompt}.
       AI_COMPOSITION_RULE: ${orientation === 'Portrait' ? 'Place the text vertically centered but shifted slightly down to avoid phone clock overlap.' : 'Expert design placement for balance.'}
       INSTRUCTION_FOR_META: If you are creating an original pattern, include a brief name for it (like 'Quantum Flow' or 'Neon Ribbons') and a technical description of its architecture in the text part of your response.
-      STYLE: Ultra-minimalist, high-contrast.`;
+      STYLE: Ultra-minimalist, high-contrast, professional digital art.`;
 
-      setState(prev => ({ ...prev, status: `ORCHESTRATING_VISUAL_BALANCE...` }));
+      setState(prev => ({ ...prev, status: `ORCHESTRATING_IDENTITY_MATRIX...` }));
       const modelName = isPro ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
       
       const response = await ai.models.generateContent({
@@ -190,6 +208,11 @@ const App: React.FC = () => {
     }
   };
 
+  const allPatterns = [...WALLPAPER_PATTERNS, ...customPatterns];
+  const solidThemes = WALLPAPER_THEMES.filter(t => (t as any).type === 'solid');
+  const gradientThemes = WALLPAPER_THEMES.filter(t => (t as any).type === 'gradient');
+
+  // Skip setup UI omitted for brevity, keeping existing logic
   if (!hasSelectedKey && !isSetupSkipped) {
     return (
       <div className="min-h-screen bg-black text-zinc-400 font-mono flex items-center justify-center p-6">
@@ -216,10 +239,6 @@ const App: React.FC = () => {
       </div>
     );
   }
-
-  const allPatterns = [...WALLPAPER_PATTERNS, ...customPatterns];
-  const solidThemes = WALLPAPER_THEMES.filter(t => (t as any).type === 'solid');
-  const gradientThemes = WALLPAPER_THEMES.filter(t => (t as any).type === 'gradient');
 
   return (
     <div className="max-w-[1400px] mx-auto p-4 text-zinc-400 font-mono text-xs leading-tight selection:bg-indigo-600">
@@ -301,7 +320,7 @@ const App: React.FC = () => {
             <h4 className="text-xs font-black text-zinc-600 uppercase tracking-widest mb-4 flex items-center gap-2">
               <span className="w-2 h-2 bg-indigo-500 rounded-sm"></span> [01] Geometry_Matrix
             </h4>
-            <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1 custom-scrollbar">
+            <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
               {allPatterns.map((p) => (
                 <button key={p.id} onClick={() => setSelectedPattern(p)} className={`w-full text-left px-4 py-2.5 rounded-md border transition-all flex items-center justify-between group ${selectedPattern.id === p.id ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-300' : 'border-transparent hover:bg-zinc-800/40 text-zinc-500 hover:text-zinc-300'}`}>
                   <span className="truncate font-bold uppercase tracking-tighter text-xs">{p.name}</span>
@@ -342,7 +361,31 @@ const App: React.FC = () => {
           </section>
 
           <section className="bg-zinc-900/30 border border-zinc-800/50 p-4 rounded-lg">
-            <h4 className="text-xs font-black text-zinc-600 uppercase tracking-widest mb-4">[04] Linguistic</h4>
+            <h4 className="text-xs font-black text-zinc-600 uppercase tracking-widest mb-4">[04] Identity_Matrix</h4>
+            <div className="space-y-3">
+              <input 
+                type="text" 
+                value={characterName} 
+                onChange={(e) => setCharacterName(e.target.value)} 
+                className="w-full bg-black/60 border border-zinc-800 rounded-md px-4 py-2.5 text-zinc-200 focus:border-indigo-500 outline-none font-bold text-xs" 
+                placeholder="CHARACTER / HERO / BRAND" 
+              />
+              <div className="grid grid-cols-2 gap-2">
+                {IDENTITY_STYLES.map(style => (
+                  <button 
+                    key={style} 
+                    onClick={() => setIdentityStyle(style)} 
+                    className={`py-2 border rounded text-[10px] uppercase font-black transition-all ${identityStyle === style ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' : 'border-zinc-800 text-zinc-600 hover:border-zinc-700'}`}
+                  >
+                    {style}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="bg-zinc-900/30 border border-zinc-800/50 p-4 rounded-lg">
+            <h4 className="text-xs font-black text-zinc-600 uppercase tracking-widest mb-4">[05] Linguistic</h4>
             <div className="space-y-3">
               <div className="relative group">
                 <input type="text" value={customText} onChange={(e) => setCustomText(e.target.value.toUpperCase())} className="w-full bg-black/60 border border-zinc-800 rounded-md px-4 py-2.5 text-zinc-200 focus:border-indigo-500 outline-none pr-12 font-bold tracking-tight text-xs" placeholder="TEXT" />
@@ -388,7 +431,10 @@ const App: React.FC = () => {
                   <div className="w-20 h-20 border border-zinc-700 rounded-full animate-[spin_12s_linear_infinite]"></div>
                   <div className="absolute inset-0 w-20 h-20 border-t-2 border-indigo-500 rounded-full animate-[spin_3s_ease-in-out_infinite]"></div>
                 </div>
-                <p className="uppercase tracking-[0.6em] font-black text-sm text-white">Awaiting_Input_Sequence</p>
+                <div className="flex flex-col items-center gap-2">
+                  <p className="uppercase tracking-[0.6em] font-black text-sm text-white">Awaiting_Input_Sequence</p>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest animate-pulse">Core_Standing_By</p>
+                </div>
               </div>
             )}
           </div>
@@ -419,8 +465,8 @@ const App: React.FC = () => {
               <p className="font-bold text-xs tracking-tight text-indigo-400">{material.toUpperCase()}</p>
             </div>
             <div className="space-y-1.5">
-              <span className="text-[10px] block uppercase text-zinc-600 font-black">Link</span>
-              <p className={`font-bold text-xs tracking-tight ${hasSelectedKey ? 'text-green-500' : 'text-zinc-500'}`}>{hasSelectedKey ? 'SECURE' : 'STANDBY'}</p>
+              <span className="text-[10px] block uppercase text-zinc-600 font-black">Identity</span>
+              <p className={`font-bold text-xs tracking-tight ${identityStyle !== 'None' ? 'text-indigo-500' : 'text-zinc-500'}`}>{identityStyle !== 'None' ? characterName.toUpperCase().substring(0, 10) : 'NULL'}</p>
             </div>
           </footer>
         </div>

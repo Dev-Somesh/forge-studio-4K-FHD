@@ -17,6 +17,7 @@ export interface WallpaperPattern {
 
 export type MaterialFinish = 'Standard' | 'Frosted Glass' | 'Brushed Metal' | 'Neon Glow' | 'Grainy Film' | 'Paper Matte';
 export type Orientation = 'Landscape' | 'Portrait';
+export type IdentityType = 'Logo' | 'Symbol' | 'Silhouette' | 'None';
 
 export interface GenerationState {
   isGenerating: boolean;
