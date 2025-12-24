@@ -9,10 +9,12 @@
 ### 🔗 [Launch Forge Studio](https://forgestudio.netlify.app/)
 
 #### ⚡ Setup Phase
-![Forge Studio Setup](./public/1.png)
+
+![Forge Studio Setup](./Public/1.%20Welcome%20Popup.png)
 
 #### 🎨 Design Workspace
-![Forge Studio Main UI](./public/2.png)
+
+![Forge Studio Main UI](./Public/2.%20dashboard.png)
 
 ---
 
@@ -26,21 +28,25 @@
 ## ✨ Engine Features
 
 ### 💎 Precision Rendering
+
 - **Native 4K Assets**: 3840 x 2160 pixels for pixel-perfect desktop clarity.
 - **Dynamic Orientation**: Specialized layout logic for **16:9 Landscape** and **9:16 Portrait**.
 - **Gemini 3 Pro Pipeline**: Access to high-tier neural cores for complex geometric synthesis.
 
 ### 🏛️ Neural Gallery
+
 - **Reference Feed**: View masterwork presets stored in the `public/` folder.
 - **Style Cloning**: Instantly replicate the parameters of a gallery asset to use as a starting point for your own 4K generation.
 
 ### 🧠 Identity Matrix & Fandom
+
 - **Character Integration**: Stylized inclusion of Anime, Superhero, or Brand identities (Logo, Symbol, Silhouette).
 - **Neural Synthesis**: A Creative Director mode where the engine invents original geometric architectures.
 - **Pattern Capture**: Stored library for recurring neural geometric discoveries.
 
 ### 🎨 Material Architecture
-- **Surface Architect**: Apply finishes like *Frosted Glass*, *Brushed Metal*, *Neon Glow*, and *Organic Matte*.
+
+- **Surface Architect**: Apply finishes like _Frosted Glass_, _Brushed Metal_, _Neon Glow_, and _Organic Matte_.
 - **Chromatic Scale**: Curated palette of solids and luminal "Abyss" gradients.
 - **Temporal History**: A real-time session tray for instant asset comparison and recovery.
 
@@ -65,4 +71,4 @@
 
 ---
 
-*Engineered with 🖤 for the Generative Design Community.*
+_Engineered with 🖤 for the Generative Design Community._
