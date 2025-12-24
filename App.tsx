@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { GoogleGenAI } from "@google/genai";
+
 import {
   WALLPAPER_THEMES,
   WALLPAPER_PATTERNS,
@@ -178,15 +178,6 @@ const App: React.FC = () => {
     if (selectedPattern.id === id) setSelectedPattern(WALLPAPER_PATTERNS[0]);
   };
 
-  const handleSelectKey = async () => {
-    try {
-      await window.aistudio?.openSelectKey();
-      setHasSelectedKey(true);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  };
 
   const clonePreset = (preset: (typeof GALLERY_PRESETS)[0]) => {
     const theme = WALLPAPER_THEMES.find((t) => t.id === preset.theme);
@@ -203,19 +194,37 @@ const App: React.FC = () => {
     setTimeout(() => setState((prev) => ({ ...prev, status: "" })), 2000);
   };
 
+  // Helper to call our Netlify function
+  const callGeminiFunction = async (payload: { model: string; contents: any; config?: any }) => {
+     const response = await fetch("/.netlify/functions/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+     });
+     
+     if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || `Server Error: ${response.status}`);
+     }
+     
+     return await response.json();
+  };
+
   const generateQuote = async (forceAuto: boolean = false) => {
     setIsGeneratingText(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
-      const response = await ai.models.generateContent({
+      // Call Netlify function instead of SDK directly
+      const response = await callGeminiFunction({
         model: "gemini-3-flash-preview",
-        contents: `Generate a ultra-minimalist, punchy, 2-word motivational quote in all caps. Use strong, assertive language. No punctuation.`,
+        contents: `Generate a ultra-minimalist, punchy, 2-word motivational quote in all caps. Use strong, assertive language. No punctuation.`
       });
+
       const text = response.text || "DO MORE";
       const cleanText = text.trim().toUpperCase().replace(/[.!?]/g, "");
       if (forceAuto) return cleanText;
       setCustomText(cleanText);
     } catch (e) {
+      console.error("Quote Generation Failed", e);
       return "DO MORE";
     } finally {
       setIsGeneratingText(false);
@@ -253,22 +262,7 @@ const App: React.FC = () => {
   };
 
   const generateWallpaper = async (overrideText?: string) => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey && quality === "FHD") {
-      setState((prev) => ({
-        ...prev,
-        error: "CRITICAL_SYSTEM_ERROR: API_KEY_NOT_FOUND",
-        status: "HALTED",
-      }));
-      return;
-    }
-
-    const isPro = quality === "4K";
-    if (isPro && !hasSelectedKey) {
-      const success = await handleSelectKey();
-      if (!success) return;
-    }
-
+    // Simplified logic: No client-side key checks needed
     setState((prev) => ({
       ...prev,
       isGenerating: true,
@@ -281,7 +275,7 @@ const App: React.FC = () => {
     setLastAiPattern(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: apiKey || "" });
+      const isPro = quality === "4K";
       const targetRes =
         orientation === "Landscape"
           ? isPro
@@ -326,15 +320,16 @@ const App: React.FC = () => {
         ? "gemini-3-pro-image-preview"
         : "gemini-2.5-flash-image";
 
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: { parts: [{ text: prompt }] },
-        config: {
+      // Call Netlify Function
+      const response = await callGeminiFunction({
+         model: modelName,
+         contents: { parts: [{ text: prompt }] },
+         config: {
           imageConfig: {
             aspectRatio: orientation === "Landscape" ? "16:9" : "9:16",
             ...(isPro ? { imageSize: "4K" } : {}),
           },
-        },
+        }
       });
 
       let b64: string | undefined;
@@ -375,8 +370,9 @@ const App: React.FC = () => {
         throw new Error("NULL_NEURAL_PAYLOAD");
       }
     } catch (err: any) {
-      if (err.message?.includes("Requested entity was not found"))
-        setHasSelectedKey(false);
+      if (err.message && err.message.includes("API Key missing")) {
+         // Handle missing server key if needed, or just standard error
+      }
       setState((prev) => ({
         ...prev,
         isGenerating: false,
@@ -393,44 +389,6 @@ const App: React.FC = () => {
   const gradientThemes = WALLPAPER_THEMES.filter(
     (t) => (t as any).type === "gradient"
   );
-
-  if (!hasSelectedKey && !isSetupSkipped) {
-    return (
-      <div className="min-h-screen bg-black text-zinc-400 font-mono flex items-center justify-center p-6">
-        <div className="max-w-md w-full border border-zinc-800 p-8 rounded-lg bg-zinc-900/20 space-y-6 shadow-2xl">
-          <div className="space-y-2">
-            <h1 className="text-white font-black text-2xl italic flex items-center gap-2">
-              <span className="bg-indigo-600 px-2 text-white">F</span> FORGE //
-              AI NEURAL SETUP
-            </h1>
-            <p className="text-xs text-zinc-500 uppercase tracking-widest">
-              Initialization Sequence Required
-            </p>
-          </div>
-          <p className="text-sm leading-relaxed">
-            Link a paid API key for{" "}
-            <span className="text-indigo-400">4K Engine Precision</span> and{" "}
-            <span className="text-indigo-400">Gemini 3 Pro Neural Core</span>.
-            Alternatively, proceed with Standalone Mode for FHD generation.
-          </p>
-          <div className="space-y-3 pt-4">
-            <button
-              onClick={handleSelectKey}
-              className="w-full py-4 bg-white text-black font-black uppercase rounded hover:bg-zinc-200 transition-all text-sm"
-            >
-              Link Pro Neural Core
-            </button>
-            <button
-              onClick={() => setIsSetupSkipped(true)}
-              className="w-full py-4 border border-zinc-800 text-zinc-500 font-black uppercase rounded hover:border-zinc-600 hover:text-zinc-300 transition-all text-sm"
-            >
-              Proceed Standard (FHD)
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-[1400px] mx-auto p-4 text-zinc-400 font-mono text-xs leading-tight selection:bg-indigo-600/30">
@@ -451,29 +409,7 @@ const App: React.FC = () => {
             </div>
             <div className="p-6 space-y-6">
               <div className="space-y-3">
-                <h3 className="text-xs font-black text-indigo-500 uppercase flex items-center gap-2">
-                  <span className="w-4 h-[1px] bg-indigo-500/50"></span>{" "}
-                  Auth_Gateway
-                </h3>
-                <div className="flex items-center justify-between p-4 border border-zinc-800 rounded bg-black/40">
-                  <span
-                    className={`text-xs ${
-                      hasSelectedKey ? "text-green-500" : "text-zinc-600 italic"
-                    }`}
-                  >
-                    {hasSelectedKey
-                      ? "STATUS: PRO_CORE_ONLINE"
-                      : "STATUS: STANDALONE_FLASH_MODE"}
-                  </span>
-                  <button
-                    onClick={handleSelectKey}
-                    className="text-xs bg-white text-black px-4 py-2 rounded uppercase font-black hover:bg-zinc-200 transition-all active:scale-95"
-                  >
-                    {hasSelectedKey ? "RE-LINK_PRO" : "UPGRADE_TO_PRO"}
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-3">
+
                 <h3 className="text-xs font-black text-indigo-500 uppercase flex items-center gap-2">
                   <span className="w-4 h-[1px] bg-indigo-500/50"></span>{" "}
                   Neural_Library_Data ({customPatterns.length})
@@ -511,6 +447,7 @@ const App: React.FC = () => {
       <header className="flex items-center justify-between border border-zinc-800/60 bg-zinc-900/20 p-3 mb-5 rounded-lg backdrop-blur-sm shadow-xl">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-indigo-600 text-white flex items-center justify-center font-black italic shadow-lg text-xl rounded-md">
+
             F
           </div>
           <div className="flex flex-col">
