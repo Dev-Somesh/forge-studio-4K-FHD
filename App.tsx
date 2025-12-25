@@ -208,9 +208,13 @@ const App: React.FC = () => {
           body: JSON.stringify({ prompt, model }), 
        });
 
-       // Handle 404 - function not available (local dev without netlify dev)
+       // Handle 404 - function not available
        if (response.status === 404) {
-         const error: any = new Error("NETLIFY_FUNCTION_NOT_AVAILABLE: The Netlify function is not available. Please run 'netlify dev' instead of 'npm run dev' for local development, or deploy to Netlify for production.");
+         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+         const errorMessage = isLocalhost
+           ? "NETLIFY_FUNCTION_NOT_AVAILABLE: The Netlify function is not available locally. Please run 'npm run dev:netlify' instead of 'npm run dev' for local development."
+           : "NETLIFY_FUNCTION_NOT_AVAILABLE: The Netlify function is not deployed. Please check your Netlify dashboard: 1) Verify the function exists in netlify/functions/gemini.js, 2) Check deployment logs for errors, 3) Trigger a new deployment if needed.";
+         const error: any = new Error(errorMessage);
          error.status = 404;
          error.errorCode = "FUNCTION_NOT_FOUND";
          throw error;
