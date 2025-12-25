@@ -11,6 +11,16 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          // Proxy Netlify Functions to local Netlify Dev server (if running)
+          // If netlify dev is running on port 8888, this will work
+          // Otherwise, use 'netlify dev' command instead of 'npm run dev'
+          '/.netlify/functions': {
+            target: 'http://localhost:8888',
+            changeOrigin: true,
+            secure: false,
+          }
+        }
       },
       plugins: [react()],
       define: {

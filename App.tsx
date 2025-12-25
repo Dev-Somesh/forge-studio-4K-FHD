@@ -207,8 +207,29 @@ const App: React.FC = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt, model }), 
        });
-       
-       const data = await response.json();
+
+       // Handle 404 - function not available (local dev without netlify dev)
+       if (response.status === 404) {
+         const error: any = new Error("NETLIFY_FUNCTION_NOT_AVAILABLE: The Netlify function is not available. Please run 'netlify dev' instead of 'npm run dev' for local development, or deploy to Netlify for production.");
+         error.status = 404;
+         error.errorCode = "FUNCTION_NOT_FOUND";
+         throw error;
+       }
+
+       // Handle empty response (network error, etc.)
+       const contentType = response.headers.get("content-type");
+       let data;
+       if (contentType && contentType.includes("application/json")) {
+         try {
+           data = await response.json();
+         } catch (jsonErr) {
+           const text = await response.text();
+           throw new Error(`Invalid JSON response: ${text.substring(0, 100)}`);
+         }
+       } else {
+         const text = await response.text();
+         throw new Error(`Unexpected response type: ${contentType || 'unknown'}. Response: ${text.substring(0, 100)}`);
+       }
 
        if (!response.ok) {
           // Create error object with status code and detailed message
@@ -412,8 +433,12 @@ const App: React.FC = () => {
       let errorMessage = err.message || "Unknown error occurred";
       let errorStatus = "HALTED_ERR";
 
-      // Handle 403 Forbidden - Billing required errors
-      if (err.status === 403 || err.errorCode === "BILLING_REQUIRED") {
+      // Handle 404 - Netlify function not available (local dev issue)
+      if (err.status === 404 || err.errorCode === "FUNCTION_NOT_FOUND" || err.message?.includes("NETLIFY_FUNCTION_NOT_AVAILABLE")) {
+        errorMessage = "NETLIFY_FUNCTION_NOT_AVAILABLE: The Netlify function is not available. For local development, run 'npm run dev:netlify' instead of 'npm run dev'. This will start both the Vite dev server and Netlify Functions locally.";
+        errorStatus = "FUNCTION_NOT_FOUND";
+      } else if (err.status === 403 || err.errorCode === "BILLING_REQUIRED") {
+        // Handle 403 Forbidden - Billing required errors
         errorMessage = err.requiresBilling
           ? "BILLING_REQUIRED: 4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 image models (gemini-3-flash-image). Please switch to FHD mode (uses gemini-2.5-flash-image - free tier) or enable billing on your Google Cloud Project."
           : err.message || "API access forbidden. Check your API key permissions.";
