@@ -339,8 +339,8 @@ const App: React.FC = () => {
         status: `ORCHESTRATING_NEURAL_MATRIX...`,
       }));
       const modelName = isPro
-        ? "gemini-3-pro-image-preview"
-        : "gemini-2.5-flash-image";
+        ? "gemini-3-flash"
+        : "gemini-2.5-flash";
 
       // Call Netlify Function with model name
       const response = await callGeminiFunction(prompt, modelName);
