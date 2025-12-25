@@ -106,6 +106,32 @@ export async function handler(event) {
         model: modelName,
         error: JSON.stringify(data, null, 2)
       });
+
+      // Handle 403 Forbidden - typically indicates billing/permission issues
+      if (res.status === 403) {
+        const isProModel = modelName.includes("3") || modelName.includes("pro");
+        const errorMessage = isProModel
+          ? "BILLING_REQUIRED: Gemini 3.0 series models require a Google Cloud Project with billing enabled. Free tier API keys cannot access Pro/Image Preview models. Please upgrade to a billed project or use FHD mode with gemini-2.5-flash."
+          : data.error?.message || "API access forbidden. Check your API key permissions and billing status.";
+
+        return {
+          statusCode: 403,
+          headers: { 
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*" 
+          },
+          body: JSON.stringify({
+            error: "BILLING_REQUIRED",
+            message: errorMessage,
+            details: data.error || data,
+            model: modelName,
+            requiresBilling: isProModel,
+            suggestion: isProModel ? "Switch to FHD mode or enable billing on your Google Cloud Project" : "Check API key permissions"
+          }),
+        };
+      }
+
+      // Handle other HTTP errors
       return {
         statusCode: res.status,
         headers: { 
@@ -117,6 +143,7 @@ export async function handler(event) {
           message: data.error?.message || data.error?.status || "API request failed",
           details: data.error || data,
           model: modelName,
+          httpStatus: res.status,
         }),
       };
     }

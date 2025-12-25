@@ -211,7 +211,14 @@ const App: React.FC = () => {
        const data = await response.json();
 
        if (!response.ok) {
-          throw new Error(data.error || data.message || `Server Error: ${response.status}`);
+          // Create error object with status code and detailed message
+          const error: any = new Error(data.message || data.error || `Server Error: ${response.status}`);
+          error.status = response.status;
+          error.errorCode = data.error;
+          error.details = data.details;
+          error.requiresBilling = data.requiresBilling;
+          error.suggestion = data.suggestion;
+          throw error;
        }
        
        return data;
@@ -319,7 +326,23 @@ const App: React.FC = () => {
           ? `IDENTITY_INTEGRATION: Include a minimalist, stylistically consistent ${identityStyle} of "${characterName}". It should be integrated into the structural patterns, behaving as part of the architecture. Apply the same ${material} finish to the identity element. Ensure it is not a sticker, but woven into the geometry.`
           : "";
 
+      // Enhanced prompt for 4K with explicit resolution and HDR specifications
+      const resolutionSpec = isPro 
+        ? `EXACT_RESOLUTION: ${targetRes} pixels. Render at native 4K resolution (3840x2160 for landscape, 2160x3840 for portrait). Every pixel must be crisp and detailed.`
+        : `EXACT_RESOLUTION: ${targetRes} pixels. Render at full HD resolution with sharp detail.`;
+      
+      const hdrSpec = isPro
+        ? `HIGH_DYNAMIC_RANGE: Utilize full HDR color gamut. Maximum color depth and contrast. Deep blacks, bright highlights, rich mid-tones. Professional color grading.`
+        : ``;
+
+      const detailSpec = isPro
+        ? `4K_DETAIL_LEVEL: Maximum detail density. Fine textures, sharp edges, no aliasing. Sub-pixel precision. Professional print-quality output.`
+        : ``;
+
       const prompt = `Create a high-fidelity ${quality} ${orientation} wallpaper (${targetRes}).
+      ${resolutionSpec}
+      ${hdrSpec}
+      ${detailSpec}
       ${patternDesc}
       ${identityPrompt}
       SURFACE_FINISH: The overall texture and material should be ${material}.
@@ -384,14 +407,31 @@ const App: React.FC = () => {
         throw new Error("NULL_NEURAL_PAYLOAD");
       }
     } catch (err: any) {
-      if (err.message && err.message.includes("API Key missing")) {
-         // Handle missing server key if needed, or just standard error
+      let errorMessage = err.message || "Unknown error occurred";
+      let errorStatus = "HALTED_ERR";
+
+      // Handle 403 Forbidden - Billing required errors
+      if (err.status === 403 || err.errorCode === "BILLING_REQUIRED") {
+        errorMessage = err.requiresBilling
+          ? "BILLING_REQUIRED: 4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 models. Please switch to FHD mode or enable billing on your Google Cloud Project."
+          : err.message || "API access forbidden. Check your API key permissions.";
+        errorStatus = "BILLING_REQUIRED";
+      } else if (err.status === 400) {
+        errorMessage = `INVALID_REQUEST: ${err.message || "Bad request to API"}`;
+        errorStatus = "INVALID_REQUEST";
+      } else if (err.status === 429) {
+        errorMessage = "RATE_LIMIT: Too many requests. Please wait a moment and try again.";
+        errorStatus = "RATE_LIMIT";
+      } else if (err.status === 500 || err.status === 503) {
+        errorMessage = `API_ERROR: ${err.message || "Server error. Please try again later."}`;
+        errorStatus = "API_ERROR";
       }
+
       setState((prev) => ({
         ...prev,
         isGenerating: false,
-        error: err.message,
-        status: "HALTED_ERR",
+        error: errorMessage,
+        status: errorStatus,
       }));
     }
   };
@@ -422,8 +462,27 @@ const App: React.FC = () => {
               </button>
             </div>
             <div className="p-6 space-y-6">
-              <div className="space-y-3">
+              {/* Billing Warning for 4K */}
+              {quality === "4K" && (
+                <div className="p-4 bg-amber-900/20 border border-amber-700/50 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <span className="text-amber-400 text-lg">⚠️</span>
+                    <div className="flex-1 space-y-2">
+                      <h4 className="text-xs font-black text-amber-400 uppercase tracking-widest">
+                        BILLING_REQUIRED
+                      </h4>
+                      <p className="text-[10px] text-amber-300/80 leading-relaxed">
+                        Gemini 3.0 series models require a Google Cloud Project with billing enabled. 
+                        Free tier API keys cannot access Pro/Image Preview models. 
+                        Switch to <span className="font-bold">FHD mode</span> for free tier usage, 
+                        or enable billing on your Google Cloud Project for 4K generation.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
+              <div className="space-y-3">
                 <h3 className="text-xs font-black text-indigo-500 uppercase flex items-center gap-2">
                   <span className="w-4 h-[1px] bg-indigo-500/50"></span>{" "}
                   Neural_Library_Data ({customPatterns.length})
@@ -479,21 +538,32 @@ const App: React.FC = () => {
               Active_Core
             </span>
             <span className="text-[10px] text-indigo-400 font-bold tracking-tight">
-              {quality === "4K" ? "GEMINI_3_PRO_IMAGE" : "GEMINI_2.5_FLASH"}
+              {quality === "4K" ? "GEMINI_3_FLASH" : "GEMINI_2.5_FLASH"}
             </span>
+            {quality === "4K" && (
+              <span className="text-[8px] text-amber-400 font-bold mt-0.5">
+                ⚠️ BILLING
+              </span>
+            )}
           </div>
-          <div className="flex bg-black/50 rounded p-1 border border-zinc-800 shadow-inner">
+          <div className="flex bg-black/50 rounded p-1 border border-zinc-800 shadow-inner relative">
             {["FHD", "4K"].map((q) => (
               <button
                 key={q}
                 onClick={() => setQuality(q as QualityMode)}
-                className={`px-5 py-1.5 rounded text-xs font-black uppercase transition-all duration-300 ${
+                className={`px-5 py-1.5 rounded text-xs font-black uppercase transition-all duration-300 relative ${
                   quality === q
                     ? "bg-zinc-800 text-white"
                     : "text-zinc-600 hover:text-zinc-300"
                 }`}
+                title={q === "4K" ? "Requires Google Cloud Project with billing enabled" : ""}
               >
                 {q}
+                {q === "4K" && (
+                  <span className="absolute -top-1 -right-1 text-[8px] text-amber-400" title="Billing required">
+                    ⚠️
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -706,21 +776,28 @@ const App: React.FC = () => {
           </section>
 
           <div className="space-y-3">
-            <button
-              onClick={() => generateWallpaper()}
-              disabled={state.isGenerating}
-              className={`w-full py-5 rounded-xl font-black text-xs uppercase shadow-2xl transition-all active:scale-[0.98] ${
-                state.isGenerating
-                  ? "bg-zinc-800 text-zinc-600 cursor-wait"
-                  : quality === "4K"
-                  ? "bg-indigo-600 text-white hover:bg-indigo-500"
-                  : "bg-zinc-100 text-black hover:bg-white"
-              }`}
-            >
-              {state.isGenerating
-                ? "NEURAL_SYNTHESIS_ACTIVE..."
-                : `RUN_ENGINE_v${quality} (3840x2160)`}
-            </button>
+            <div className="space-y-2">
+              {quality === "4K" && (
+                <div className="px-3 py-2 bg-amber-900/20 border border-amber-700/30 rounded text-[9px] text-amber-400/80">
+                  <span className="font-black">⚠️</span> Requires billed Google Cloud Project
+                </div>
+              )}
+              <button
+                onClick={() => generateWallpaper()}
+                disabled={state.isGenerating}
+                className={`w-full py-5 rounded-xl font-black text-xs uppercase shadow-2xl transition-all active:scale-[0.98] ${
+                  state.isGenerating
+                    ? "bg-zinc-800 text-zinc-600 cursor-wait"
+                    : quality === "4K"
+                    ? "bg-indigo-600 text-white hover:bg-indigo-500"
+                    : "bg-zinc-100 text-black hover:bg-white"
+                }`}
+              >
+                {state.isGenerating
+                  ? "NEURAL_SYNTHESIS_ACTIVE..."
+                  : `RUN_ENGINE_v${quality} (${quality === "4K" ? "3840x2160" : "1920x1080"})`}
+              </button>
+            </div>
             <button
               onClick={neuralSurprise}
               disabled={state.isGenerating}
@@ -734,9 +811,38 @@ const App: React.FC = () => {
           </div>
 
           {state.error && (
-            <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg text-[10px] text-red-500 uppercase leading-relaxed animate-in fade-in slide-in-from-top-1">
-              ERR_CODE: {state.error.split(" ").slice(0, 3).join("_")}... Check
-              Terminal.
+            <div className={`p-4 rounded-lg text-[10px] uppercase leading-relaxed animate-in fade-in slide-in-from-top-1 ${
+              state.error.includes("BILLING_REQUIRED") || state.status === "BILLING_REQUIRED"
+                ? "bg-amber-900/30 border border-amber-700/50 text-amber-400"
+                : "bg-red-900/20 border border-red-800/50 text-red-500"
+            }`}>
+              <div className="flex items-start gap-2">
+                {state.error.includes("BILLING_REQUIRED") || state.status === "BILLING_REQUIRED" ? (
+                  <span className="text-amber-400 text-sm">⚠️</span>
+                ) : (
+                  <span className="text-red-500 text-sm">✕</span>
+                )}
+                <div className="flex-1 space-y-1">
+                  <div className="font-black">
+                    {state.error.includes("BILLING_REQUIRED") || state.status === "BILLING_REQUIRED"
+                      ? "BILLING_REQUIRED"
+                      : `ERR_CODE: ${state.error.split(" ").slice(0, 3).join("_")}`}
+                  </div>
+                  <div className="text-[9px] opacity-90 leading-relaxed normal-case">
+                    {state.error.includes("BILLING_REQUIRED") || state.status === "BILLING_REQUIRED"
+                      ? "4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 models. Switch to FHD mode or enable billing."
+                      : state.error}
+                  </div>
+                  {state.error.includes("BILLING_REQUIRED") || state.status === "BILLING_REQUIRED" ? (
+                    <button
+                      onClick={() => setQuality("FHD")}
+                      className="mt-2 px-3 py-1.5 bg-amber-700/30 border border-amber-600/50 rounded text-[9px] font-black uppercase hover:bg-amber-700/50 transition-colors"
+                    >
+                      SWITCH TO FHD MODE
+                    </button>
+                  ) : null}
+                </div>
+              </div>
             </div>
           )}
         </div>
