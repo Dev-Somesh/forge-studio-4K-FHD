@@ -197,7 +197,7 @@ const App: React.FC = () => {
   };
 
   // Helper to call our Netlify function with Anti-Spam
-  const callGeminiFunction = async (prompt: string) => {
+  const callGeminiFunction = async (prompt: string, model?: string) => {
      if (isCallingRef.current) return null;
      isCallingRef.current = true;
 
@@ -205,17 +205,19 @@ const App: React.FC = () => {
        const response = await fetch("/.netlify/functions/gemini", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // SIMPLIFIED PAYLOAD AS REQUESTED
-          body: JSON.stringify({ prompt }), 
+          body: JSON.stringify({ prompt, model }), 
        });
        
        const data = await response.json();
 
        if (!response.ok) {
-          throw new Error(data.error || `Server Error: ${response.status}`);
+          throw new Error(data.error || data.message || `Server Error: ${response.status}`);
        }
        
        return data;
+     } catch (err: any) {
+       console.error("API call failed:", err);
+       throw err;
      } finally {
        // Rate limit cool-down
        setTimeout(() => {
@@ -228,9 +230,10 @@ const App: React.FC = () => {
     if(isGeneratingText) return;
     setIsGeneratingText(true);
     try {
-      // Use the new helper with simplified prompt
+      // Use the new helper with simplified prompt (text-only model for quotes)
       const response = await callGeminiFunction(
-        `Generate a ultra-minimalist, punchy, 2-word motivational quote in all caps. Use strong, assertive language. No punctuation.`
+        `Generate a ultra-minimalist, punchy, 2-word motivational quote in all caps. Use strong, assertive language. No punctuation.`,
+        "gemini-2.5-flash" // Use text model for quote generation
       );
 
       if (!response) return; // blocked by spam filter
@@ -339,8 +342,8 @@ const App: React.FC = () => {
         ? "gemini-3-pro-image-preview"
         : "gemini-2.5-flash-image";
 
-      // Call Netlify Function
-      const response = await callGeminiFunction(prompt);
+      // Call Netlify Function with model name
+      const response = await callGeminiFunction(prompt, modelName);
 
       let b64: string | undefined;
       let aiResponseText: string = "";
