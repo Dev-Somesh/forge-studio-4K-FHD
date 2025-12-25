@@ -1,7 +1,8 @@
 [build]
-  command = "npm run build"
+  command = "npm run build && cp _headers dist/_headers"
   publish = "dist"
 
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+

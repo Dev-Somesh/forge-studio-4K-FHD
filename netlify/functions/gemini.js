@@ -1,9 +1,26 @@
 export async function handler(event) {
+  // CORS headers for all responses
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json"
+  };
+
   try {
+    // Handle CORS preflight
+    if (event.httpMethod === "OPTIONS") {
+      return {
+        statusCode: 200,
+        headers,
+        body: ""
+      };
+    }
+
     if (event.httpMethod !== "POST") {
-      return { 
-        statusCode: 405, 
-        headers: { "Access-Control-Allow-Origin": "*" },
+      return {
+        statusCode: 405,
+        headers,
         body: JSON.stringify({ error: "Method Not Allowed" })
       };
     }
@@ -14,12 +31,9 @@ export async function handler(event) {
       console.error("GEMINI_API_KEY is not set in environment variables");
       return {
         statusCode: 500,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*" 
-        },
-        body: JSON.stringify({ 
-          error: "API Key not configured. Please set GEMINI_API_KEY in Netlify environment variables." 
+        headers,
+        body: JSON.stringify({
+          error: "API Key not configured. Please set GEMINI_API_KEY in Netlify environment variables."
         }),
       };
     }
@@ -31,10 +45,7 @@ export async function handler(event) {
     if (!prompt) {
       return {
         statusCode: 400,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*" 
-        },
+        headers,
         body: JSON.stringify({ error: "Prompt is required" }),
       };
     }
@@ -48,28 +59,28 @@ export async function handler(event) {
       "gemini-3-flash-image",         // May require billing for 4K
       "gemini-3-pro-image-preview"    // May require billing for 4K
     ];
-    
+
     // Also allow text models for text-only operations (like quote generation)
     const validTextModels = [
       "gemini-2.5-flash",             // Text model for quote generation
       "gemini-3-flash"                // Text model
     ];
-    
+
     const allValidModels = [...validImageModels, ...validTextModels];
-    
+
     // Use provided model if valid, otherwise default to image model for wallpaper generation
-    const modelName = allValidModels.includes(model) 
-      ? model 
+    const modelName = allValidModels.includes(model)
+      ? model
       : "gemini-2.5-flash-image"; // Default to image model for wallpaper generation
-    
+
     // Check if this is an image-generation model
-    const isImageModel = validImageModels.includes(modelName) || 
-                         modelName.includes("image") || 
-                         modelName.includes("imagen");
-    
+    const isImageModel = validImageModels.includes(modelName) ||
+      modelName.includes("image") ||
+      modelName.includes("imagen");
+
     // Construct the API endpoint
     const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
-    
+
     console.log(`Calling Gemini API with model: ${modelName}`);
 
     // Prepare request body
@@ -117,7 +128,7 @@ export async function handler(event) {
       if (res.status === 403) {
         const isProModel = modelName.includes("3") || modelName.includes("pro") || modelName.includes("imagen-3");
         const isFreeTierModel = modelName === "gemini-2.5-flash-image";
-        
+
         let errorMessage;
         if (isProModel) {
           errorMessage = "BILLING_REQUIRED: Gemini 3.0 series or Imagen 3 models require a Google Cloud Project with billing enabled. Free tier API keys cannot access these models. Please upgrade to a billed project or use FHD mode with gemini-2.5-flash-image.";
@@ -129,10 +140,7 @@ export async function handler(event) {
 
         return {
           statusCode: 403,
-          headers: { 
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*" 
-          },
+          headers,
           body: JSON.stringify({
             error: "BILLING_REQUIRED",
             message: errorMessage,
@@ -147,10 +155,7 @@ export async function handler(event) {
       // Handle other HTTP errors
       return {
         statusCode: res.status,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*" 
-        },
+        headers,
         body: JSON.stringify({
           error: "Upstream_API_Error",
           message: data.error?.message || data.error?.status || "API request failed",
@@ -163,21 +168,15 @@ export async function handler(event) {
 
     return {
       statusCode: 200,
-      headers: { 
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*" 
-      },
+      headers,
       body: JSON.stringify(data),
     };
   } catch (err) {
     console.error("Function Error:", err);
     return {
       statusCode: 500,
-      headers: { 
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*" 
-      },
-      body: JSON.stringify({ 
+      headers,
+      body: JSON.stringify({
         error: err.message,
         stack: process.env.NODE_ENV === "development" ? err.stack : undefined
       }),
