@@ -73,8 +73,9 @@ export async function handler(event) {
     console.log(`Calling Gemini API with model: ${modelName}`);
 
     // Prepare request body
-    // CRITICAL: Only add generationConfig for image-generation models
-    // Text models will fail if you request image/png response
+    // Note: Image-generation models (gemini-2.5-flash-image, etc.) automatically return images
+    // No need for responseMimeType in generationConfig - that parameter doesn't exist
+    // The model itself determines the output format based on the model type
     const requestBody = {
       contents: [
         {
@@ -84,12 +85,8 @@ export async function handler(event) {
       ],
     };
 
-    // Only add image generation config for image-capable models
-    if (isImageModel || modelName.includes("image") || modelName.includes("imagen")) {
-      requestBody.generationConfig = {
-        responseMimeType: "image/png",
-      };
-    }
+    // Image-generation models will automatically return images in the response
+    // No special configuration needed - the model type determines the output
 
     console.log(`Calling Gemini API:`, {
       model: modelName,
