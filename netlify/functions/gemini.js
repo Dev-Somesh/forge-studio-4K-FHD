@@ -79,7 +79,10 @@ export async function handler(event) {
       modelName.includes("imagen");
 
     // Construct the API endpoint
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
+    // CRITICAL: Image generation models (gemini-2.5-flash-image, etc.) require v1beta API
+    // Text-only models use v1 API
+    const apiVersion = isImageModel ? "1beta" : "1";
+    const apiUrl = `https://generativelanguage.googleapis.com/v${apiVersion}/models/${modelName}:generateContent?key=${apiKey}`;
 
     console.log(`Calling Gemini API with model: ${modelName}`);
 
