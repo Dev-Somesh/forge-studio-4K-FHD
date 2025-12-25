@@ -26,7 +26,7 @@ export async function handler(event) {
 
     const body = JSON.parse(event.body || "{}");
     const prompt = body.prompt;
-    const model = body.model || "gemini-2.5-flash"; // Default to flash for FHD
+    const model = body.model || "gemini-2.5-flash-image"; // Default to image model for FHD
 
     if (!prompt) {
       return {
@@ -39,22 +39,33 @@ export async function handler(event) {
       };
     }
 
-    // Validate model name - using actual available models from Gemini AI Studio
-    const validModels = [
-      "gemini-2.5-flash",
-      "gemini-3-flash",
-      "gemini-2.5-flash-lite",
-      "gemini-2.5-flash-tts",
-      "gemini-2.5-flash-native-audio-dialog",
-      "gemini-robotics-er-1.5-preview",
-      "gemma-3-12b",
-      "gemma-3-1b",
-      "gemma-3-27b",
-      "gemma-3-2b",
-      "gemma-3-4b"
+    // Validate model name
+    // CRITICAL: For image generation, must use image-generation models (ending in -image)
+    // Text models (gemini-2.5-flash, gemini-3-flash) can see images but cannot generate them
+    const validImageModels = [
+      "gemini-2.5-flash-image",      // Free tier - Recommended for FHD image generation
+      "imagen-3.0-generate-002",      // Free tier - Alternative for high-fidelity
+      "gemini-3-flash-image",         // May require billing for 4K
+      "gemini-3-pro-image-preview"    // May require billing for 4K
     ];
     
-    const modelName = validModels.includes(model) ? model : "gemini-2.5-flash";
+    // Also allow text models for text-only operations (like quote generation)
+    const validTextModels = [
+      "gemini-2.5-flash",             // Text model for quote generation
+      "gemini-3-flash"                // Text model
+    ];
+    
+    const allValidModels = [...validImageModels, ...validTextModels];
+    
+    // Use provided model if valid, otherwise default to image model for wallpaper generation
+    const modelName = allValidModels.includes(model) 
+      ? model 
+      : "gemini-2.5-flash-image"; // Default to image model for wallpaper generation
+    
+    // Check if this is an image-generation model
+    const isImageModel = validImageModels.includes(modelName) || 
+                         modelName.includes("image") || 
+                         modelName.includes("imagen");
     
     // Construct the API endpoint
     const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
@@ -62,8 +73,8 @@ export async function handler(event) {
     console.log(`Calling Gemini API with model: ${modelName}`);
 
     // Prepare request body
-    // Note: Standard Gemini text models may not support image generation
-    // Try without generationConfig first - if models support images, they'll return inlineData
+    // CRITICAL: Only add generationConfig for image-generation models
+    // Text models will fail if you request image/png response
     const requestBody = {
       contents: [
         {
@@ -73,10 +84,8 @@ export async function handler(event) {
       ],
     };
 
-    // Only add generationConfig for models that explicitly support image generation
-    // Standard text models (gemini-2.5-flash, gemini-3-flash) may not support this
-    // If image generation fails, we'll get a clear error message from the API
-    if (modelName.includes("image") || modelName.includes("imagen")) {
+    // Only add image generation config for image-capable models
+    if (isImageModel || modelName.includes("image") || modelName.includes("imagen")) {
       requestBody.generationConfig = {
         responseMimeType: "image/png",
       };
@@ -109,10 +118,17 @@ export async function handler(event) {
 
       // Handle 403 Forbidden - typically indicates billing/permission issues
       if (res.status === 403) {
-        const isProModel = modelName.includes("3") || modelName.includes("pro");
-        const errorMessage = isProModel
-          ? "BILLING_REQUIRED: Gemini 3.0 series models require a Google Cloud Project with billing enabled. Free tier API keys cannot access Pro/Image Preview models. Please upgrade to a billed project or use FHD mode with gemini-2.5-flash."
-          : data.error?.message || "API access forbidden. Check your API key permissions and billing status.";
+        const isProModel = modelName.includes("3") || modelName.includes("pro") || modelName.includes("imagen-3");
+        const isFreeTierModel = modelName === "gemini-2.5-flash-image";
+        
+        let errorMessage;
+        if (isProModel) {
+          errorMessage = "BILLING_REQUIRED: Gemini 3.0 series or Imagen 3 models require a Google Cloud Project with billing enabled. Free tier API keys cannot access these models. Please upgrade to a billed project or use FHD mode with gemini-2.5-flash-image.";
+        } else if (!isFreeTierModel) {
+          errorMessage = data.error?.message || "API access forbidden. This model may require billing or is not available on the free tier.";
+        } else {
+          errorMessage = data.error?.message || "API access forbidden. Check your API key permissions, daily limits (free tier: ~500 images/day), or billing status.";
+        }
 
         return {
           statusCode: 403,
@@ -126,7 +142,7 @@ export async function handler(event) {
             details: data.error || data,
             model: modelName,
             requiresBilling: isProModel,
-            suggestion: isProModel ? "Switch to FHD mode or enable billing on your Google Cloud Project" : "Check API key permissions"
+            suggestion: isProModel ? "Switch to FHD mode (gemini-2.5-flash-image) or enable billing on your Google Cloud Project" : "Check API key permissions or daily limits"
           }),
         };
       }

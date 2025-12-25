@@ -361,9 +361,11 @@ const App: React.FC = () => {
         ...prev,
         status: `ORCHESTRATING_NEURAL_MATRIX...`,
       }));
+      // CRITICAL: Must use image-generation models, not text-only models
+      // Text models can see images but cannot generate them
       const modelName = isPro
-        ? "gemini-3-flash"
-        : "gemini-2.5-flash";
+        ? "gemini-3-flash-image"  // For 4K - may require billing
+        : "gemini-2.5-flash-image"; // For FHD - free tier supported
 
       // Call Netlify Function with model name
       const response = await callGeminiFunction(prompt, modelName);
@@ -413,7 +415,7 @@ const App: React.FC = () => {
       // Handle 403 Forbidden - Billing required errors
       if (err.status === 403 || err.errorCode === "BILLING_REQUIRED") {
         errorMessage = err.requiresBilling
-          ? "BILLING_REQUIRED: 4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 models. Please switch to FHD mode or enable billing on your Google Cloud Project."
+          ? "BILLING_REQUIRED: 4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 image models (gemini-3-flash-image). Please switch to FHD mode (uses gemini-2.5-flash-image - free tier) or enable billing on your Google Cloud Project."
           : err.message || "API access forbidden. Check your API key permissions.";
         errorStatus = "BILLING_REQUIRED";
       } else if (err.status === 400) {
@@ -472,9 +474,9 @@ const App: React.FC = () => {
                         BILLING_REQUIRED
                       </h4>
                       <p className="text-[10px] text-amber-300/80 leading-relaxed">
-                        Gemini 3.0 series models require a Google Cloud Project with billing enabled. 
-                        Free tier API keys cannot access Pro/Image Preview models. 
-                        Switch to <span className="font-bold">FHD mode</span> for free tier usage, 
+                        Gemini 3.0 series image models (gemini-3-flash-image) require a Google Cloud Project with billing enabled. 
+                        Free tier API keys cannot access these models. 
+                        Switch to <span className="font-bold">FHD mode</span> (uses gemini-2.5-flash-image - free tier supported) 
                         or enable billing on your Google Cloud Project for 4K generation.
                       </p>
                     </div>
@@ -538,7 +540,7 @@ const App: React.FC = () => {
               Active_Core
             </span>
             <span className="text-[10px] text-indigo-400 font-bold tracking-tight">
-              {quality === "4K" ? "GEMINI_3_FLASH" : "GEMINI_2.5_FLASH"}
+              {quality === "4K" ? "GEMINI_3_FLASH_IMAGE" : "GEMINI_2.5_FLASH_IMAGE"}
             </span>
             {quality === "4K" && (
               <span className="text-[8px] text-amber-400 font-bold mt-0.5">
@@ -830,7 +832,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="text-[9px] opacity-90 leading-relaxed normal-case">
                     {state.error.includes("BILLING_REQUIRED") || state.status === "BILLING_REQUIRED"
-                      ? "4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 models. Switch to FHD mode or enable billing."
+                      ? "4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 image models. Switch to FHD mode (uses gemini-2.5-flash-image - free tier) or enable billing."
                       : state.error}
                   </div>
                   {state.error.includes("BILLING_REQUIRED") || state.status === "BILLING_REQUIRED" ? (
