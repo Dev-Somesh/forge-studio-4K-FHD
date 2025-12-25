@@ -64,8 +64,29 @@
 
 ## 🚀 Initialization
 
-1. **Environmental Link**: Ensure `API_KEY` is present in your hosting environment.
+### Local Development
+
+**Important**: For local development, you must use Netlify Dev to run the functions:
+
+```bash
+# Install Netlify CLI (if not already installed)
+npm install -g netlify-cli
+
+# Run with Netlify Dev (includes functions)
+npm run dev:netlify
+
+# OR use regular Vite (functions won't work locally)
+npm run dev
+```
+
+**Note**: The regular `npm run dev` command will show a 404 error when trying to call Netlify Functions. Use `npm run dev:netlify` for full functionality.
+
+### Production Usage
+
+1. **Environmental Link**: Ensure `GEMINI_API_KEY` is set in Netlify environment variables.
 2. **Core Selection**: Toggle between **FHD (Fast)** and **4K (Precision)** cores.
+   - FHD uses `gemini-2.5-flash-image` (free tier supported)
+   - 4K uses `gemini-3-flash-image` (may require billing)
 3. **Orchestration**: Select geometry, material finish, and optional identity nodes.
 4. **Synthesis**: Activate the `RUN_ENGINE` command to generate your asset.
 
