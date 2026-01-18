@@ -120,20 +120,7 @@ const App: React.FC = () => {
   };
 
 
-  const clonePreset = (preset: (typeof GALLERY_PRESETS)[0]) => {
-    const theme = WALLPAPER_THEMES.find((t) => t.id === preset.theme);
-    const pattern = WALLPAPER_PATTERNS.find((p) => p.id === preset.pattern);
-    if (theme) setSelectedTheme(theme);
-    if (pattern) setSelectedPattern(pattern);
-    setMaterial(preset.material as MaterialFinish);
-    setCustomText(preset.text);
-    // Visual feedback
-    setState((prev) => ({
-      ...prev,
-      status: `CLONED: ${preset.name.toUpperCase()}`,
-    }));
-    setTimeout(() => setState((prev) => ({ ...prev, status: "" })), 2000);
-  };
+
 
   // Helper to call our Netlify function with Anti-Spam
   const callGeminiFunction = async (prompt: string, model?: string) => {
