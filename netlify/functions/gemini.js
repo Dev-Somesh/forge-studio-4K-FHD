@@ -117,7 +117,27 @@ export async function handler(event) {
       body: JSON.stringify(requestBody),
     });
 
-    const data = await res.json();
+    // Always try to get response text first, then parse as JSON
+    const responseText = await res.text();
+    let data;
+    
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch (jsonError) {
+      console.error("Failed to parse Gemini API response as JSON:", jsonError);
+      console.error("Response text:", responseText);
+      
+      return {
+        statusCode: 502,
+        headers,
+        body: JSON.stringify({
+          error: "Invalid_API_Response",
+          message: "Gemini API returned invalid JSON response",
+          details: { responseText: responseText.substring(0, 500) },
+          model: modelName,
+        }),
+      };
+    }
 
     if (!res.ok) {
       console.error("Gemini API Error Details:", {

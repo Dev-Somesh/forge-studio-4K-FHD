@@ -42,68 +42,7 @@ const IDENTITY_STYLES: IdentityType[] = [
   "Silhouette",
 ];
 
-const GALLERY_PRESETS = [
-  {
-    id: "ref-1",
-    name: "Neon Horizon",
-    url: "/WallpaperForge-FHD-fractal-dark.png",
-    theme: "grad-cyber",
-    pattern: "grid",
-    material: "Neon Glow",
-    text: "ULTRA NEON",
-    quality: "4K",
-  },
-  {
-    id: "ref-2",
-    name: "Slate Minimal",
-    url: "/Wallpaper-FHD-poly-dark.png",
-    theme: "solid-slate",
-    pattern: "pills",
-    material: "Brushed Metal",
-    text: "PURE FOCUS",
-    quality: "FHD",
-  },
-  {
-    id: "ref-3",
-    name: "Abyss Depth",
-    url: "/Wallpaper-FHD-topo-dark.png",
-    theme: "grad-ocean",
-    pattern: "topo",
-    material: "Frosted Glass",
-    text: "DEEP WATER",
-    quality: "4K",
-  },
-  {
-    id: "ref-4",
-    name: "Magma Flow",
-    url: "/forge-wallpaper-FHD-1766553318167.png",
-    theme: "grad-sunset",
-    pattern: "origami",
-    material: "Grainy Film",
-    text: "CORE HEAT",
-    quality: "FHD",
-  },
-  {
-    id: "ref-5",
-    name: "Neural Forge",
-    url: "/forge-1766553955401.png",
-    theme: "grad-amethyst",
-    pattern: "auto",
-    material: "Standard",
-    text: "MIND FORGE",
-    quality: "4K",
-  },
-  {
-    id: "ref-6",
-    name: "Quantum Grid",
-    url: "/forge-1766553972131.png",
-    theme: "grad-toxic",
-    pattern: "grid",
-    material: "Neon Glow",
-    text: "QUANTUM",
-    quality: "FHD",
-  },
-];
+
 
 const App: React.FC = () => {
   const [hasSelectedKey, setHasSelectedKey] = useState<boolean>(false);
@@ -207,32 +146,16 @@ const App: React.FC = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt, model }), 
        });
-
-       // Handle 404 - function not available
-       if (response.status === 404) {
-         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-         const errorMessage = isLocalhost
-           ? "NETLIFY_FUNCTION_NOT_AVAILABLE: The Netlify function is not available locally. Please run 'npm run dev:netlify' instead of 'npm run dev' for local development."
-           : "NETLIFY_FUNCTION_NOT_AVAILABLE: The Netlify function is not deployed. Please check your Netlify dashboard: 1) Verify the function exists in netlify/functions/gemini.js, 2) Check deployment logs for errors, 3) Trigger a new deployment if needed.";
-         const error: any = new Error(errorMessage);
-         error.status = 404;
-         error.errorCode = "FUNCTION_NOT_FOUND";
-         throw error;
-       }
-
-       // Handle empty response (network error, etc.)
-       const contentType = response.headers.get("content-type");
+       
+       // Check if response has content before parsing JSON
+       const responseText = await response.text();
        let data;
-       if (contentType && contentType.includes("application/json")) {
-         try {
-           data = await response.json();
-         } catch (jsonErr) {
-           const text = await response.text();
-           throw new Error(`Invalid JSON response: ${text.substring(0, 100)}`);
-         }
-       } else {
-         const text = await response.text();
-         throw new Error(`Unexpected response type: ${contentType || 'unknown'}. Response: ${text.substring(0, 100)}`);
+       
+       try {
+         data = responseText ? JSON.parse(responseText) : {};
+       } catch (jsonError) {
+         console.error("JSON parsing failed:", jsonError, "Response text:", responseText);
+         throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
        }
 
        if (!response.ok) {
@@ -386,11 +309,9 @@ const App: React.FC = () => {
         ...prev,
         status: `ORCHESTRATING_NEURAL_MATRIX...`,
       }));
-      // CRITICAL: Must use image-generation models, not text-only models
-      // Text models can see images but cannot generate them
       const modelName = isPro
-        ? "gemini-3-flash-image"  // For 4K - may require billing
-        : "gemini-2.5-flash-image"; // For FHD - free tier supported
+        ? "gemini-3-flash"
+        : "gemini-2.5-flash";
 
       // Call Netlify Function with model name
       const response = await callGeminiFunction(prompt, modelName);
@@ -437,14 +358,10 @@ const App: React.FC = () => {
       let errorMessage = err.message || "Unknown error occurred";
       let errorStatus = "HALTED_ERR";
 
-      // Handle 404 - Netlify function not available (local dev issue)
-      if (err.status === 404 || err.errorCode === "FUNCTION_NOT_FOUND" || err.message?.includes("NETLIFY_FUNCTION_NOT_AVAILABLE")) {
-        errorMessage = "NETLIFY_FUNCTION_NOT_AVAILABLE: The Netlify function is not available. For local development, run 'npm run dev:netlify' instead of 'npm run dev'. This will start both the Vite dev server and Netlify Functions locally.";
-        errorStatus = "FUNCTION_NOT_FOUND";
-      } else if (err.status === 403 || err.errorCode === "BILLING_REQUIRED") {
-        // Handle 403 Forbidden - Billing required errors
+      // Handle 403 Forbidden - Billing required errors
+      if (err.status === 403 || err.errorCode === "BILLING_REQUIRED") {
         errorMessage = err.requiresBilling
-          ? "BILLING_REQUIRED: 4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 image models (gemini-3-flash-image). Please switch to FHD mode (uses gemini-2.5-flash-image - free tier) or enable billing on your Google Cloud Project."
+          ? "BILLING_REQUIRED: 4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 models. Please switch to FHD mode or enable billing on your Google Cloud Project."
           : err.message || "API access forbidden. Check your API key permissions.";
         errorStatus = "BILLING_REQUIRED";
       } else if (err.status === 400) {
@@ -503,9 +420,9 @@ const App: React.FC = () => {
                         BILLING_REQUIRED
                       </h4>
                       <p className="text-[10px] text-amber-300/80 leading-relaxed">
-                        Gemini 3.0 series image models (gemini-3-flash-image) require a Google Cloud Project with billing enabled. 
-                        Free tier API keys cannot access these models. 
-                        Switch to <span className="font-bold">FHD mode</span> (uses gemini-2.5-flash-image - free tier supported) 
+                        Gemini 3.0 series models require a Google Cloud Project with billing enabled. 
+                        Free tier API keys cannot access Pro/Image Preview models. 
+                        Switch to <span className="font-bold">FHD mode</span> for free tier usage, 
                         or enable billing on your Google Cloud Project for 4K generation.
                       </p>
                     </div>
@@ -569,7 +486,7 @@ const App: React.FC = () => {
               Active_Core
             </span>
             <span className="text-[10px] text-indigo-400 font-bold tracking-tight">
-              {quality === "4K" ? "GEMINI_3_FLASH_IMAGE" : "GEMINI_2.5_FLASH_IMAGE"}
+              {quality === "4K" ? "GEMINI_3_FLASH" : "GEMINI_2.5_FLASH"}
             </span>
             {quality === "4K" && (
               <span className="text-[8px] text-amber-400 font-bold mt-0.5">
@@ -861,7 +778,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="text-[9px] opacity-90 leading-relaxed normal-case">
                     {state.error.includes("BILLING_REQUIRED") || state.status === "BILLING_REQUIRED"
-                      ? "4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 image models. Switch to FHD mode (uses gemini-2.5-flash-image - free tier) or enable billing."
+                      ? "4K generation requires a Google Cloud Project with billing enabled. Free tier API keys cannot access Gemini 3.0 models. Switch to FHD mode or enable billing."
                       : state.error}
                   </div>
                   {state.error.includes("BILLING_REQUIRED") || state.status === "BILLING_REQUIRED" ? (
@@ -942,48 +859,7 @@ const App: React.FC = () => {
             )}
           </div>
 
-          {/* Relocated Neural Gallery Section */}
-          <section className="bg-zinc-900/40 border border-indigo-500/10 p-5 rounded-2xl overflow-hidden ring-1 ring-indigo-500/5 shadow-xl">
-            <div className="flex items-center justify-between mb-5">
-              <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>{" "}
-                Neural_Gallery (Masterwork_Presets) - {GALLERY_PRESETS.length} items
-              </h4>
-              <span className="text-[9px] text-zinc-600 uppercase font-black tracking-tighter">
-                Clone style for 4K Engine calibration
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {GALLERY_PRESETS.map((p) => (
-                <div
-                  key={p.id}
-                  className="relative group rounded-xl overflow-hidden border border-zinc-800 aspect-video cursor-pointer shadow-lg"
-                  onClick={() => clonePreset(p)}
-                >
-                  <img
-                    src={p.url}
-                    alt={p.name}
-                    className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105 group-hover:blur-[2px]"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-4">
-                    <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                      <span className="text-[11px] text-indigo-400 font-black uppercase tracking-widest block mb-1">
-                        {p.name}
-                      </span>
-                      <div className="flex gap-2">
-                        <span className="text-[8px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-sm uppercase">
-                          {p.material}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute top-3 right-3 bg-indigo-600/90 text-white text-[8px] px-2 py-0.5 rounded-full font-black tracking-widest backdrop-blur-sm border border-indigo-400/30">
-                    {p.quality}_REF
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+
 
           {/* History Tray */}
           {history.length > 0 && (
